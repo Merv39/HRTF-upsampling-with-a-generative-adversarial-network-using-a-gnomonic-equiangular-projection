@@ -33,17 +33,17 @@ def clear_create_directories(config):
 
 
 def merge_left_right_hrtfs(input_dir, output_dir):
+    print("input directory", input_dir)
     # Clear/Create directory
     shutil.rmtree(Path(output_dir), ignore_errors=True)
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     hrtf_file_names = [os.path.join(input_dir, hrtf_file_name) for hrtf_file_name in os.listdir(input_dir)
                        if os.path.isfile(os.path.join(input_dir, hrtf_file_name))]
-
+    print(hrtf_file_names)
     data_dict_left = {}
     data_dict_right = {}
     for f in hrtf_file_names:
-
         file_ext = re.findall(re.escape(input_dir) + '/(.*)_[0-9]*[a-z]*.pickle$', f)[0]
 
         with open(f, "rb") as file:
@@ -87,13 +87,13 @@ def merge_files(config):
 
 
 def get_hrtf_from_ds(config, ds, index):
-    coordinates = ds.row_angles, ds.column_angles
+    coordinates = ds.fundamental_angles, ds.orthogonal_angles
     position_grid = np.stack(np.meshgrid(*coordinates, indexing='ij'), axis=-1)
 
     sphere_temp = []
     hrir_temp = []
-    for row_idx, row in enumerate(ds.row_angles):
-        for column_idx, column in enumerate(ds.column_angles):
+    for row_idx, row in enumerate(ds.fundamental_angles):
+        for column_idx, column in enumerate(ds.orthogonal_angles):
             if not any(np.ma.getmaskarray(ds[index]['features'][row_idx][column_idx].flatten())):
                 az_temp = np.radians(position_grid[row_idx][column_idx][0])
                 el_temp = np.radians(position_grid[row_idx][column_idx][1])

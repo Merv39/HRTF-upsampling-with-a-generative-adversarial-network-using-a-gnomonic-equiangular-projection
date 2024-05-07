@@ -12,7 +12,7 @@ class Config:
 
         # overwrite settings with arguments provided
         self.tag = tag if tag is not None else 'pub-prep-upscale-sonicom-sonicom-synthetic-tl-2'
-        self.dataset = dataset if dataset is not None else 'SONICOM'
+        self.dataset = dataset if dataset is not None else 'Sonicom'
         self.data_dir = data_dir if data_dir is not None else '/data/' + self.dataset
 
         if existing_model_tag is not None:
@@ -34,18 +34,19 @@ class Config:
         # Data dirs
         if using_hpc:
             # HPC data dirs
-            self.data_dirs_path = '/rds/general/user/aos13/home/HRTF-upsampling-with-a-generative-' \
+            self.data_dirs_path = '/rds/general/user/mgw23/home/HRTF-upsampling-with-a-generative-' \
                                   'adversarial-network-using-a-gnomonic-equiangular-projection'
             self.raw_hrtf_dir = Path('/rds/general/project/sonicom/live/HRTF Datasets')
-            self.amt_dir = '/rds/general/user/aos13/home/HRTF-GANs-27Sep22-prep-for-publication/thirdParty'
+            self.amt_dir = '/rds/general/user/mgw23/home/HRTF-GANs-27Sep22-prep-for-publication/thirdParty'
         else:
             # local data dirs
-            self.data_dirs_path = '/home/aos13/HRTF-GANs-27Sep22-prep-for-publication'
-            self.raw_hrtf_dir = Path('/home/aos13/HRTF_datasets')
-            self.amt_dir = '/home/aos13/AMT/amt_code'
+            self.data_dirs_path = 'C:/Users/March/Documents/HRTF/HRTF-GANs-27Sep22-prep-for-publication'
+            self.raw_hrtf_dir = Path('Z:\projects\sonicom\live\HRTF Datasets')
+            self.amt_dir = 'C:/Users/March/Documents/HRTF/AMT/amt_code'
 
         self.runs_folder = '/runs-hpc'
         self.path = f'{self.data_dirs_path}{self.runs_folder}/{self.tag}'
+        print(self.path)
         self.existing_model_path = f'{self.data_dirs_path}{self.runs_folder}/{self.existing_model_tag}'
 
         self.valid_path = f'{self.data_dirs_path}{self.runs_folder}/{self.tag}/valid'
