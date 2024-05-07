@@ -34,15 +34,15 @@ class Config:
         # Data dirs
         if using_hpc:
             # HPC data dirs
-            self.data_dirs_path = '/rds/general/user/aos13/home/HRTF-upsampling-with-a-generative-' \
+            self.data_dirs_path = '/rds/general/user/mgw23/home/HRTF-upsampling-with-a-generative-' \
                                   'adversarial-network-using-a-gnomonic-equiangular-projection'
             self.raw_hrtf_dir = Path('/rds/general/project/sonicom/live/HRTF Datasets')
-            self.amt_dir = '/rds/general/user/aos13/home/HRTF-GANs-27Sep22-prep-for-publication/thirdParty'
+            self.amt_dir = '/rds/general/user/mgw23/home/HRTF-GANs-27Sep22-prep-for-publication/thirdParty'
         else:
             # local data dirs
-            self.data_dirs_path = '/home/aos13/HRTF-GANs-27Sep22-prep-for-publication'
-            self.raw_hrtf_dir = Path('/home/aos13/HRTF_datasets')
-            self.amt_dir = '/home/aos13/AMT/amt_code'
+            self.data_dirs_path = '/home/mgw23/HRTF-GANs-27Sep22-prep-for-publication'
+            self.raw_hrtf_dir = Path('/home/mgw23/HRTF_datasets')
+            self.amt_dir = '/home/mgw23/AMT/amt_code'
 
         self.runs_folder = '/runs-hpc'
         self.path = f'{self.data_dirs_path}{self.runs_folder}/{self.tag}'
