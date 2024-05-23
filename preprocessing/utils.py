@@ -43,7 +43,9 @@ def merge_left_right_hrtfs(input_dir, output_dir):
     data_dict_left = {}
     data_dict_right = {}
     for f in hrtf_file_names:
-
+        # print(f)
+        # print(Path(f))
+        # print("hi", re.findall(re.escape(input_dir) + '/(.*)_[0-9]*[a-z]*.pickle$', f))
         file_ext = re.findall(re.escape(input_dir) + '/(.*)_[0-9]*[a-z]*.pickle$', f)[0]
 
         with open(f, "rb") as file:
@@ -75,11 +77,13 @@ def merge_left_right_hrtfs(input_dir, output_dir):
             hrtf_l = data_dict_left[file_ext][subj_id]
             dimension = hrtf_r.ndim-1
             hrtf_merged = torch.cat((hrtf_l, hrtf_r), dim=dimension)
+            print("Creating Merged")
             with open('%s/%s_%s.pickle' % (output_dir, file_ext, subj_id), "wb") as file:
                 pickle.dump(hrtf_merged, file)
 
 
 def merge_files(config):
+    print(config.train_hrtf_dir)
     merge_left_right_hrtfs(config.train_hrtf_dir, config.train_hrtf_merge_dir)
     merge_left_right_hrtfs(config.valid_hrtf_dir, config.valid_hrtf_merge_dir)
     merge_left_right_hrtfs(config.train_original_hrtf_dir, config.train_original_hrtf_merge_dir)

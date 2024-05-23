@@ -31,12 +31,17 @@ def load_dataset(config, mean=None, std=None) -> [CUDAPrefetcher, CUDAPrefetcher
 
     # Load train, test and valid datasets
     if config.merge_flag:
+        #SOMETHING HAS GONE WRONG HERE
+        print(config.train_hrtf_merge_dir)
         train_datasets = TrainValidHRTFDataset(config.train_hrtf_merge_dir, config.hrtf_size, config.upscale_factor, transform)
         valid_datasets = TrainValidHRTFDataset(config.valid_hrtf_merge_dir, config.hrtf_size, config.upscale_factor, transform)
+        print(config.train_hrtf_merge_dir, config.hrtf_size, config.upscale_factor, transform)
+        print("HERE", len(train_datasets))
     else:
         train_datasets = TrainValidHRTFDataset(config.train_hrtf_dir, config.hrtf_size, config.upscale_factor, transform)
         valid_datasets = TrainValidHRTFDataset(config.valid_hrtf_dir, config.hrtf_size, config.upscale_factor, transform)
 
+    print("Generating dataloader")
     # Generator all dataloader
     train_dataloader = DataLoader(train_datasets,
                                   batch_size=config.batch_size,
@@ -54,9 +59,12 @@ def load_dataset(config, mean=None, std=None) -> [CUDAPrefetcher, CUDAPrefetcher
                                   persistent_workers=True)
 
     # Place all data on the preprocessing data loader
+    print("Put data on correct device", config.device_name)
     if torch.cuda.is_available() and config.ngpu > 0:
         device = torch.device(config.device_name)
+        print("train prefetcher")
         train_prefetcher = CUDAPrefetcher(train_dataloader, device)
+        print("valid prefetcher")
         valid_prefetcher = CUDAPrefetcher(valid_dataloader, device)
     else:
         train_prefetcher = CPUPrefetcher(train_dataloader)

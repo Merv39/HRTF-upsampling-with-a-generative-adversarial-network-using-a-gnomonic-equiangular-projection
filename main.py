@@ -16,6 +16,7 @@ from model import util
 from baselines.barycentric_interpolation import run_barycentric_interpolation
 from baselines.hrtf_selection import run_hrtf_selection
 from evaluation.evaluation import run_lsd_evaluation, run_localisation_evaluation
+from hrtfdata.full import SONICOM
 
 PI_4 = np.pi / 4
 
@@ -26,17 +27,18 @@ np.random.seed(0)
 
 def main(config, mode):
     # Initialise Config object
-    data_dir = config.raw_hrtf_dir / config.dataset
+    data_dir = config.raw_hrtf_dir / config.dataset.upper()
     print(os.getcwd())
     print(config.dataset)
 
     imp = importlib.import_module('hrtfdata.full')
-    load_function = getattr(imp, config.dataset)
+    print(imp)
+    load_function = getattr(imp, config.dataset.upper())
 
     if mode == 'generate_projection':
         # Must be run in this mode once per dataset, finds barycentric coordinates for each point in the cubed sphere
         # No need to load the entire dataset in this case
-        ds = load_function(data_dir, features_spec={'hrirs': {'samplerate': config.hrir_samplerate, 'side': 'left', 'domain': 'time'}}, subject_ids='first')
+        ds = SONICOM(data_dir, feature_spec={'hrirs': {'samplerate': config.hrir_samplerate, 'side': 'left', 'domain': 'time'}}, subject_ids='first')
         # need to use protected member to get this data, no getters
         cs = CubedSphere(mask=ds[0]['features'].mask, row_angles=ds.row_angles, column_angles=ds.column_angles)
         generate_euclidean_cube(config, cs.get_sphere_coords(), edge_len=config.hrtf_size)
@@ -44,7 +46,7 @@ def main(config, mode):
     elif mode == 'preprocess':
         # Interpolates data to find HRIRs on cubed sphere, then FFT to obtain HRTF, finally splits data into train and
         # val sets and saves processed data
-        ds = load_function(data_dir, features_spec={'hrirs': {'samplerate': config.hrir_samplerate, 'side': 'both', 'domain': 'time'}})
+        ds = load_function(data_dir, feature_spec={'hrirs': {'samplerate': config.hrir_samplerate, 'side': 'both', 'domain': 'time'}})
         cs = CubedSphere(mask=ds[0]['features'].mask, row_angles=ds.row_angles, column_angles=ds.column_angles)
 
         # need to use protected member to get this data, no getters
@@ -88,9 +90,11 @@ def main(config, mode):
 
             subject_id = str(ds.subject_ids[i])
             side = ds.sides[i]
+            print("Creating HR Train and Valid")
             with open('%s/%s_mag_%s%s.pickle' % (projected_dir, config.dataset, subject_id, side), "wb") as file:
                 pickle.dump(clean_hrtf, file)
 
+            print("Creating Original Train and Valid")
             with open('%s/%s_mag_%s%s.pickle' % (projected_dir_original, config.dataset, subject_id, side), "wb") as file:
                 pickle.dump(hrtf_original, file)
 
@@ -98,6 +102,7 @@ def main(config, mode):
                 pickle.dump(phase_original, file)
 
         if config.merge_flag:
+            print("Merging...")
             merge_files(config)
 
         if config.gen_sofa_flag:
@@ -113,6 +118,7 @@ def main(config, mode):
             pickle.dump((mean, std, min_hrtf, max_hrtf), file)
 
     elif mode == 'train':
+        print("Begin Training")
         # Trains the GANs, according to the parameters specified in Config
         train_prefetcher, _ = load_dataset(config, mean=None, std=None)
         print("Loaded all datasets successfully.")

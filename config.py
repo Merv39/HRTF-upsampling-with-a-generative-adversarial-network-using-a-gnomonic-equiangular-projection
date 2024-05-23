@@ -12,7 +12,7 @@ class Config:
 
         # overwrite settings with arguments provided
         self.tag = tag if tag is not None else 'pub-prep-upscale-sonicom-sonicom-synthetic-tl-2'
-        self.dataset = dataset if dataset is not None else 'SONICOM'
+        self.dataset = dataset if dataset is not None else 'Sonicom'
         self.data_dir = data_dir if data_dir is not None else '/data/' + self.dataset
 
         if existing_model_tag is not None:
@@ -27,6 +27,7 @@ class Config:
         self.gen_sofa_flag = True
         self.nbins_hrtf = 128  # make this a power of 2
         self.hrtf_size = 16
+        # 320 * 2^2 = 1280; 80 * 2^4 = 1280 ...etc
         self.upscale_factor = 2  # can only take values: 2, 4 ,8, 16
         self.train_samples_ratio = 0.8
         self.hrir_samplerate = 48000.0
@@ -34,15 +35,15 @@ class Config:
         # Data dirs
         if using_hpc:
             # HPC data dirs
-            self.data_dirs_path = '/rds/general/user/mgw23/home/HRTF-upsampling-with-a-generative-' \
+            self.data_dirs_path = '/rds/general/user/mgw23/home/HRTF-GANs-27Sep22-prep-for-publication' \
                                   'adversarial-network-using-a-gnomonic-equiangular-projection'
             self.raw_hrtf_dir = Path('/rds/general/project/sonicom/live/HRTF Datasets')
-            self.amt_dir = '/rds/general/user/mgw23/home/HRTF-GANs-27Sep22-prep-for-publication/thirdParty'
+            self.amt_dir = '/rds/general/user/mgw23/AMT/amt_code'
         else:
             # local data dirs
-            self.data_dirs_path = '/home/mgw23/HRTF-GANs-27Sep22-prep-for-publication'
-            self.raw_hrtf_dir = Path('/home/mgw23/HRTF_datasets')
-            self.amt_dir = '/home/mgw23/AMT/amt_code'
+            self.data_dirs_path = 'Z:/home/HRTF-GANs-27Sep22-prep-for-publicationadversarial-network-using-a-gnomonic-equiangular-projection'
+            self.raw_hrtf_dir = Path('Z:/projects/sonicom/live/HRTF Datasets')
+            self.amt_dir = 'Z:/home/AMT/amt_code'
 
         self.runs_folder = '/runs-hpc'
         self.path = f'{self.data_dirs_path}{self.runs_folder}/{self.tag}'

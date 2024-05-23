@@ -102,12 +102,14 @@ class CUDAPrefetcher:
     """
 
     def __init__(self, dataloader, device: torch.device):
+        print("Cuda Prefetcher")
         self.batch_data = None
         self.original_dataloader = dataloader
         self.device = device
 
         self.data = iter(dataloader)
         self.stream = torch.cuda.Stream()
+        print("Preloading")
         self.preload()
 
     def preload(self):
@@ -117,6 +119,7 @@ class CUDAPrefetcher:
             self.batch_data = None
             return None
 
+        print("ToDevice")
         with torch.cuda.stream(self.stream):
             for k, v in self.batch_data.items():
                 if torch.is_tensor(v):
