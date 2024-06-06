@@ -34,51 +34,38 @@ import numpy as np
 # # vis.plot_source_locations(hrtf1.locs)
 # plt.show()
 
-import sys
-sys.path.insert(0, '../../src')
-import sofa
-print(sofa)
 
+
+
+# Turning LSD Error from testing, Barycentric, HRTFSelection into data to be plotted
 import matplotlib.pyplot as plt
-from mpl_toolkits import mplot3d
 import numpy as np
 
-def plot_coordinates(coords, title):
-    x0 = coords
-    n0 = coords
-    fig = plt.figure(figsize=(15, 15))
-    ax = fig.add_subplot(111, projection='3d')
-    q = ax.quiver(x0[:, 0], x0[:, 1], x0[:, 2], n0[:, 0],
-                  n0[:, 1], n0[:, 2], length=0.1)
-    plt.xlabel('x (m)')
-    plt.ylabel('y (m)')
-    plt.title(title)
-    return q
+def collect_LSD_error(filename: str) -> []:
+    LSD_Error = []
 
-HRTF_path = r"Z:\home\HRTF-GANs-27Sep22-prep-for-publicationadversarial-network-using-a-gnomonic-equiangular-projection\baseline_results\Sonicom\hrtf_selection\valid\sofa_min_phase\maximum.sofa"
-HRTF = sofa.Database.open(HRTF_path)
-HRTF.Metadata.dump()
+    with open(filename, 'r') as file:
+        for line in file:
+            if line.startswith("LSD Error of subject") and ":" in line:
+                LSD_Error.append(float(line.split(":")[1]))
 
-# plot Source positions
-source_positions = HRTF.Source.Position.get_values(system="cartesian")
-plot_coordinates(source_positions, 'Source positions');
+    return LSD_Error
 
-# plot Data.IR at M=5 for E=0
-measurement = 5
-emitter = 0
-legend = []
+GAN_LSD_Error = collect_LSD_error(r"C:\Users\March\Desktop\Msc AI\MSc Project\TestingLog.txt")
+Barycentric_LSD_Error = collect_LSD_error(r"C:\Users\March\Desktop\Msc AI\MSc Project\BarycentricLog.txt")
+HRTF_Selection_LSD_Error = collect_LSD_error(r"C:\Users\March\Desktop\Msc AI\MSc Project\HRTFSelectionLog.txt")
 
-t = np.arange(0,HRTF.Dimensions.N)*HRTF.Data.SamplingRate.get_values(indices={"M":measurement})
+x_arrays = [GAN_LSD_Error]  # Example arrays for x values
+y_values = np.linspace(1, 12, 5)  # Example array for y values
+error = np.std(y_values)
 
-plt.figure(figsize=(15, 5))
-for receiver in np.arange(HRTF.Dimensions.R):
-    plt.plot(t, HRTF.Data.IR.get_values(indices={"M":measurement, "R":receiver, "E":emitter}))
-    legend.append('Receiver {0}'.format(receiver))
-plt.title('HRIR at M={0} for emitter {1}'.format(measurement, emitter))
-plt.legend(legend)
-plt.xlabel('$t$ in s')
-plt.ylabel(r'$h(t)$')
-plt.grid()
+# Plot each set of x and y values
+for x, y in zip(x_arrays, y_values):
+    plt.errorbar(x, [y] * len(x), yerr=error, fmt='-o', label=f'x={x[0]}')
+
+plt.xlabel('X-axis')
+plt.ylabel('Y-axis')
+plt.title('Mean and Error Bars Example')
+plt.legend()
+plt.grid(True)
 plt.show()
-
-HRTF.close()

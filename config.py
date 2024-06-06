@@ -27,15 +27,16 @@ class Config:
         self.gen_sofa_flag = True
         self.nbins_hrtf = 128  # make this a power of 2
         self.hrtf_size = 16
-        # 320 * 2^2 = 1280; 80 * 2^4 = 1280 ...etc
-        self.upscale_factor = 2  # can only take values: 2, 4 ,8, 16
+        self.upscale_factor = 1  # can only take values: 2, 4 ,8, 16
         self.train_samples_ratio = 0.8
         self.hrir_samplerate = 48000.0
 
         # Data dirs
         if using_hpc:
-            # HPC data dirs
-            self.data_dirs_path = '/rds/general/user/mgw23/home/HRTF-GANs-27Sep22-prep-for-publication' \
+            # HPC data dirs -- CHANGE THE PATH WHEN TESTING DIFFERENT CODE
+            # self.data_dirs_path = '/rds/general/user/mgw23/home/HRTF-GANs-27Sep22-prep-for-publication' \
+            #                       'adversarial-network-using-a-gnomonic-equiangular-projection'
+            self.data_dirs_path = '/rds/general/user/mgw23/home/HRTF-GANs-30May24-Reverberation' \
                                   'adversarial-network-using-a-gnomonic-equiangular-projection'
             self.raw_hrtf_dir = Path('/rds/general/project/sonicom/live/HRTF Datasets')
             self.amt_dir = '/rds/general/user/mgw23/AMT/amt_code'
@@ -54,6 +55,8 @@ class Config:
 
         self.projection_dir = f'{self.data_dirs_path}/projection_coordinates'
         self.baseline_dir = '/baseline_results/' + self.dataset
+        
+        self.corrupted_sofa_dir = self.data_dirs_path + self.data_dir + '/corrupted'
 
         self.train_hrtf_dir = self.data_dirs_path + self.data_dir + '/hr/train'
         self.valid_hrtf_dir = self.data_dirs_path + self.data_dir + '/hr/valid'

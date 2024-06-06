@@ -251,7 +251,7 @@ def gen_sofa_preprocess(config, cube, sphere, sphere_original):
     convert_to_sofa(config.valid_original_hrtf_merge_dir, config, use_phase=True, cube=None, sphere=sphere_original)
 
 
-def generate_euclidean_cube(config, measured_coords, edge_len=16):
+def generate_euclidean_cube(config, measured_coords, edge_len=16, path=None):
     """Calculate barycentric coordinates for projection based on a specified cube sphere edge length and a set of
     measured coordinates, finally save them to the file"""
     cube_coords, sphere_coords = [], []
@@ -274,8 +274,9 @@ def generate_euclidean_cube(config, measured_coords, edge_len=16):
         print(f"Data point {count+1} out of {len(sphere_coords)} ({round(100 * count / len(sphere_coords))}%)")
 
     # save euclidean_cube, euclidean_sphere, euclidean_sphere_triangles, euclidean_sphere_coeffs
-    Path(config.projection_dir).mkdir(parents=True, exist_ok=True)
-    filename = f'{config.projection_dir}/{config.dataset}_projection_{config.hrtf_size}'
+    path = config.projection_dir if path is None else path
+    Path(path).mkdir(parents=True, exist_ok=True)
+    filename = f'{path}/{config.dataset}_projection_{config.hrtf_size}'
     with open(filename, "wb") as file:
         pickle.dump((cube_coords, sphere_coords, euclidean_sphere_triangles, euclidean_sphere_coeffs), file)
 

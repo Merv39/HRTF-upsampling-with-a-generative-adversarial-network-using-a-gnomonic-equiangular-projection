@@ -4,6 +4,8 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset
 
+from audioprocessing.audio_processing import reverberate_hrtf
+
 
 # based on https://github.com/Lornatang/SRGAN-PyTorch/blob/7292452634137d8f5d4478e44727ec1166a89125/dataset.py
 def downsample_hrtf(hr_hrtf, hrtf_size, upscale_factor):
@@ -44,7 +46,7 @@ class TrainValidHRTFDataset(Dataset):
         self.hrtf_size = hrtf_size
         # How many times the high-resolution hrtf is the low-resolution hrtf
         self.upscale_factor = upscale_factor
-        # transform to be applied to the data
+        # transform to be applied (preprocessing directly to the clean data)
         self.transform = transform
 
     def __getitem__(self, batch_index: int) -> [torch.Tensor, torch.Tensor]:
@@ -53,6 +55,7 @@ class TrainValidHRTFDataset(Dataset):
             hrtf = pickle.load(file)
 
         # hrtf processing operations
+        # hr = high-res, lr = low-res
         if self.transform is not None:
             # If using a transform, treat panels as batch dim such that dims are (panels, channels, X, Y)
             hr_hrtf = torch.permute(hrtf, (0, 3, 1, 2))
@@ -63,8 +66,10 @@ class TrainValidHRTFDataset(Dataset):
             hr_hrtf = torch.permute(hrtf, (3, 0, 1, 2))
 
         # downsample hrtf
-        lr_hrtf = downsample_hrtf(hr_hrtf, self.hrtf_size, self.upscale_factor)
-
+        # lr_hrtf = downsample_hrtf(hr_hrtf, self.hrtf_size, self.upscale_factor)
+        # TODO:LOAD REVERBERATED HRTF FILES HERE
+        lr_hrtf = reverberate_hrtf(hr_hrtf)
+        
         return {"lr": lr_hrtf, "hr": hr_hrtf, "filename": self.hrtf_file_names[batch_index]}
 
     def __len__(self) -> int:

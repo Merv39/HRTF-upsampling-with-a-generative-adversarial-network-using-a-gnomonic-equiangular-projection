@@ -18,6 +18,8 @@ from baselines.hrtf_selection import run_hrtf_selection
 from evaluation.evaluation import run_lsd_evaluation, run_localisation_evaluation
 from hrtfdata.full import SONICOM
 
+from audioprocessing.audio_processing import modify_sofa
+
 PI_4 = np.pi / 4
 
 # Random seed to maintain reproducible results
@@ -35,6 +37,7 @@ def main(config, mode):
     print(imp)
     load_function = getattr(imp, config.dataset.upper())
 
+    # loads the HRTFDataset Object into ds and projects it onto a cubed sphere
     if mode == 'generate_projection':
         # Must be run in this mode once per dataset, finds barycentric coordinates for each point in the cubed sphere
         # No need to load the entire dataset in this case
@@ -42,6 +45,12 @@ def main(config, mode):
         # need to use protected member to get this data, no getters
         cs = CubedSphere(mask=ds[0]['features'].mask, row_angles=ds.row_angles, column_angles=ds.column_angles)
         generate_euclidean_cube(config, cs.get_sphere_coords(), edge_len=config.hrtf_size)
+
+    # injects reverb into the sofa files and preprocesses them to the training format
+    elif mode == 'generate_corruption':
+        #copy the existing SOFA files, corrupt them and save them to a new location
+        modify_sofa(data_dir, config.corrupted_sofa_dir)
+
 
     elif mode == 'preprocess':
         # Interpolates data to find HRIRs on cubed sphere, then FFT to obtain HRTF, finally splits data into train and
