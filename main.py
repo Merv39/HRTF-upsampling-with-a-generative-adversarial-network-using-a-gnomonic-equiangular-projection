@@ -167,7 +167,12 @@ def main(config, mode):
         #TODO: implement a baseline where the time of the impulse is truncated to a certain window before audio reflections occur
         temporal_window_data_folder = f'/temporal_window_interpolated_data_{config.upscale_factor}'
         temporal_window_output_path = config.temporal_window_hrtf_dir + temporal_window_data_folder
-        cube, sphere = run_temporal_window_baseline(config, temporal_window_output_path)
+        run_temporal_window_baseline(config, temporal_window_output_path)
+
+        # Get Coordinated from projection file
+        projection_filename = f'{config.projection_dir}/{config.dataset}_projection_{config.hrtf_size}'
+        with open(projection_filename, "rb") as f:
+            (cube, sphere, _, _) = pickle.load(f)
 
         if config.gen_sofa_flag:
             convert_to_sofa(temporal_window_output_path, config, cube, sphere)

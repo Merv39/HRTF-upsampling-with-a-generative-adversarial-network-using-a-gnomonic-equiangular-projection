@@ -1,5 +1,5 @@
 from model.util import spectral_distortion_metric
-from model.dataset import downsample_hrtf
+from model.dataset import downsample_hrtf, modify_hrtf
 from preprocessing.utils import convert_to_sofa
 
 import shutil
@@ -23,7 +23,7 @@ def replace_nodes(config, sr_dir, file_name):
         sr_hrtf = pickle.load(f)
 
     lr_hrtf = torch.permute(
-        downsample_hrtf(torch.permute(hr_hrtf, (3, 0, 1, 2)), config.hrtf_size, config.upscale_factor),
+        modify_hrtf(torch.permute(hr_hrtf, (3, 0, 1, 2))),
         (1, 2, 3, 0))
 
     lr = lr_hrtf.detach().cpu()
@@ -39,6 +39,8 @@ def replace_nodes(config, sr_dir, file_name):
     return target, generated
 
 def run_lsd_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
+    '''sr_dir = directory of the superresolution HRTFs
+    '''
 
     file_ext = 'lsd_errors.pickle' if file_ext is None else file_ext
 
@@ -63,12 +65,18 @@ def run_lsd_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
             lsd_errors.append([subject_id,  float(error.detach())])
             print('LSD Error of subject %s: %0.4f' % (subject_id, float(error.detach())))
     else:
+        # Not HRTF Selection
         sr_data_paths = glob.glob('%s/%s_*' % (sr_dir, config.dataset))
         sr_data_file_names = ['/' + os.path.basename(x) for x in sr_data_paths]
 
         lsd_errors = []
         for file_name in sr_data_file_names:
             target, generated = replace_nodes(config, sr_dir, file_name)
+            if torch.equal(generated, target):
+                print("ERROR, TARGET AND GENERATED HRTF ARE THE SAME")
+            else:
+                print("Generated Shape:", generated.shape)
+                print("Target Shape:", target.shape)
             error = spectral_distortion_metric(generated, target)
             subject_id = ''.join(re.findall(r'\d+', file_name))
             lsd_errors.append([subject_id,  float(error.detach())])

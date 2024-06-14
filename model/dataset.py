@@ -5,10 +5,19 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from audioprocessing.audio_processing import reverberate_hrtf
+import config
 
+def modify_hrtf(*args):
+    '''
+    Modify this function to select how the HRTF should be changed
+    
+    Options: downsample_hrtf(), reverberate_hrtf()
+    '''
+    #return downsample_hrtf(*args)
+    return reverberate_hrtf(*args)
 
 # based on https://github.com/Lornatang/SRGAN-PyTorch/blob/7292452634137d8f5d4478e44727ec1166a89125/dataset.py
-def downsample_hrtf(hr_hrtf, hrtf_size, upscale_factor):
+def downsample_hrtf(hr_hrtf, hrtf_size=config.HRTF_SIZE, upscale_factor=config.UPSCALE_FACTOR):
     # downsample hrtf
     if upscale_factor == hrtf_size:
         mid_pos = int(hrtf_size / 2)

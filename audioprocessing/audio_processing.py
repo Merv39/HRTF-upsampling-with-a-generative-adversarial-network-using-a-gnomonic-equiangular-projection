@@ -35,7 +35,7 @@ def read_sofa(sofa_path):
     sofa_data = sf.read_sofa(sofa_path)
     sample_rate = sofa_data.Data_SamplingRate
     audio_data = sofa_data.Data_IR
-    print(audio_data.shape)
+    debug(audio_data.shape)
     return
 
 def modify_sofa(ORIGINAL_SOFA_PATH=ORIGINAL_SOFA_PATH, MODIFIED_SOFA_PATH=MODIFIED_SOFA_PATH, WETDRY=0.5):
@@ -101,7 +101,7 @@ def plot_fft(signal:pf.Signal, label="Impulse") -> None:
 def frequency_bin_mapping(signal:pf.Signal, target_bins=256):
     fs = signal.sampling_rate
     signal = signal.time[0]
-    print(signal.shape) #(sampling_rate, )
+    debug(signal.shape) #(sampling_rate, )
 
     # Perform FFT
     fft_result = np.fft.fft(signal)

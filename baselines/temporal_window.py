@@ -77,54 +77,30 @@ def run_temporal_window_baseline(config, temporal_window_output_path, subject_fi
         with open(config.valid_hrtf_merge_dir + file_name, "rb") as f:
             hr_hrtf = pickle.load(f)
 
-        # add to dict for right ears
-        subj_id = int(re.findall(r'\d+', file_name)[0])
-        hrtf_dict_left[subj_id] = torch.permute(torch.tensor(np.array([np.array(hr_hrtf).T[0:config.nbins_hrtf]])), (0, 1, 4, 3, 2))
-        hrtf_dict_right[subj_id] = torch.permute(torch.tensor(np.array([np.array(hr_hrtf).T[config.nbins_hrtf:]])), (0, 1, 4, 3, 2))
-        subj_ids.append(subj_id)
+        # make a corrupted version of the hrtf
+        lr_hrtf = torch.permute(reverberate_hrtf(torch.permute(hr_hrtf, (3, 0, 1, 2))),(1, 2, 3, 0))
 
-    # for each subject, compare their HRTF sets to all other subjects' HRTF sets via SD metric
-    overall_avg_dict = {}
-    for subject_id_ref in subj_ids:
-        # the 'reference' HRTFs are considered as candidates for the non-individualized HRTFs
-        # essentially, we are trying to find the subject whose HRTF sets are most "average"
-        # relative to the rest of the training data
-        running_total = 0
-        for subject_id in subj_ids:
-            if subject_id != subject_id_ref:
-                # SD metric for right ear
-                sd_right = spectral_distortion_metric(hrtf_dict_right[subject_id_ref], hrtf_dict_right[subject_id])
-                # SD metric for left ear
-                sd_left = spectral_distortion_metric(hrtf_dict_left[subject_id_ref], hrtf_dict_left[subject_id])
-                # average for left & right
-                sd_avg = (sd_right + sd_left) / 2.
-                # add to running total
-                running_total += sd_avg
+        hr_hrtf_left = hr_hrtf[:, :, :, :config.nbins_hrtf]
+        hr_hrtf_right = hr_hrtf[:, :, :, config.nbins_hrtf:]
 
-        # find the average SD metric for each possible 'reference' subject
-        overall_avg = running_total / (len(hrtf_dict_right.keys()) - 1.)
-        print(f"Average for {subject_id_ref}: {overall_avg}")
-        overall_avg_dict[subject_id_ref] = overall_avg
+        lr_hrtf_left = lr_hrtf[:, :, :, :config.nbins_hrtf]
+        lr_hrtf_right = lr_hrtf[:, :, :, config.nbins_hrtf:]
 
-    # find the HR HRTF that minimizes the SD metric relative to all other HR HRTFs
-    min_id = min(overall_avg_dict, key=overall_avg_dict.get)
-    min_val = overall_avg_dict[min_id]
-    with open(f'{temporal_window_output_path}/minimum.pickle', "wb") as file:
-        with open(f'{config.valid_hrtf_merge_dir}/{config.dataset}_mag_{min_id}.pickle', "rb") as f:
-            hr_hrtf = pickle.load(f)
-        pickle.dump(hr_hrtf, file)
+        # # SD metric for right ear
+        # sd_right = spectral_distortion_metric(lr_hrtf_right, hr_hrtf_right)
+        # # SD metric for left ear
+        # sd_left = spectral_distortion_metric(lr_hrtf_left, hr_hrtf_left)
+        # # average for left & right
+        # sd_avg = (sd_right + sd_left) / 2.
+        # # add to running total
+        # print("Average LSD:", sd_avg)
 
-    print(f"Minimum is {min_id} with average LSD {min_val}")
+        # modify left and right hrtf individually then merge
+        temporal_window_hr_merged = torch.tensor(np.concatenate((lr_hrtf_left, lr_hrtf_right), axis=3))
 
-    max_id = max(overall_avg_dict, key=overall_avg_dict.get)
-    max_val = overall_avg_dict[max_id]
-    with open(f'{temporal_window_output_path}/maximum.pickle', "wb") as file:
-        with open(f'{config.valid_hrtf_merge_dir}/{config.dataset}_mag_{max_id}.pickle', "rb") as f:
-            hr_hrtf = pickle.load(f)
-        pickle.dump(hr_hrtf, file)
+        with open(temporal_window_output_path + file_name, "wb") as file:
+            pickle.dump(temporal_window_hr_merged, file)
 
-    print(f"Maximum is {max_id} with average LSD {max_val}")
-
-    print('Created HRTF selection baseline')
+        print('Created temporal window baseline %s' % file_name.replace('/', ''))
 
     return

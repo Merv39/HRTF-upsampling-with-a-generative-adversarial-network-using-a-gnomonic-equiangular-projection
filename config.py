@@ -1,6 +1,16 @@
 import json
 from pathlib import Path
 
+# CONSTANTS FOR EASY ACCESS
+MERGE_FLAG = True
+GEN_SOFA_FLAG = True
+NBINS_HRTF = 128
+HRTF_SIZE = 16
+UPSCALE_FACTOR = 1
+TRAIN_SAMPLES_RATIO = 0.8
+HRIR_SAMPLERATE = 48000.0
+
+WETDRY_RATIO = 0.5
 
 class Config:
     """Config class
@@ -23,16 +33,16 @@ class Config:
         self.existing_model_tag = existing_model_tag if existing_model_tag is not None else None
 
         # Data processing parameters
-        self.merge_flag = True
-        self.gen_sofa_flag = True
-        self.nbins_hrtf = 128  # make this a power of 2
-        self.hrtf_size = 16
-        self.upscale_factor = 1  # can only take values: 2, 4 ,8, 16
-        self.train_samples_ratio = 0.8
-        self.hrir_samplerate = 48000.0
+        self.merge_flag = MERGE_FLAG
+        self.gen_sofa_flag = GEN_SOFA_FLAG
+        self.nbins_hrtf = NBINS_HRTF  # make this a power of 2
+        self.hrtf_size = HRTF_SIZE
+        self.upscale_factor = UPSCALE_FACTOR  # can only take values: 2, 4 ,8, 16
+        self.train_samples_ratio = TRAIN_SAMPLES_RATIO
+        self.hrir_samplerate = HRIR_SAMPLERATE
 
         # Reverb Parameters
-        self.wetdry_ratio = 0.5
+        self.wetdry_ratio = WETDRY_RATIO
 
         # Data dirs
         FOLDER_VERSION_NAME = "HRTF-GANs-30May24-Reverberationadversarial-network-using-a-gnomonic-equiangular-projection"
