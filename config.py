@@ -31,18 +31,21 @@ class Config:
         self.train_samples_ratio = 0.8
         self.hrir_samplerate = 48000.0
 
+        # Reverb Parameters
+        self.wetdry_ratio = 0.5
+
         # Data dirs
+        FOLDER_VERSION_NAME = "HRTF-GANs-30May24-Reverberationadversarial-network-using-a-gnomonic-equiangular-projection"
         if using_hpc:
             # HPC data dirs -- CHANGE THE PATH WHEN TESTING DIFFERENT CODE
             # self.data_dirs_path = '/rds/general/user/mgw23/home/HRTF-GANs-27Sep22-prep-for-publication' \
             #                       'adversarial-network-using-a-gnomonic-equiangular-projection'
-            self.data_dirs_path = '/rds/general/user/mgw23/home/HRTF-GANs-30May24-Reverberation' \
-                                  'adversarial-network-using-a-gnomonic-equiangular-projection'
+            self.data_dirs_path = '/rds/general/user/mgw23/home/'+FOLDER_VERSION_NAME
             self.raw_hrtf_dir = Path('/rds/general/project/sonicom/live/HRTF Datasets')
             self.amt_dir = '/rds/general/user/mgw23/AMT/amt_code'
         else:
             # local data dirs
-            self.data_dirs_path = 'Z:/home/HRTF-GANs-27Sep22-prep-for-publicationadversarial-network-using-a-gnomonic-equiangular-projection'
+            self.data_dirs_path = 'Z:/home/'+FOLDER_VERSION_NAME
             self.raw_hrtf_dir = Path('Z:/projects/sonicom/live/HRTF Datasets')
             self.amt_dir = 'Z:/home/AMT/amt_code'
 
@@ -56,21 +59,23 @@ class Config:
         self.projection_dir = f'{self.data_dirs_path}/projection_coordinates'
         self.baseline_dir = '/baseline_results/' + self.dataset
         
-        self.corrupted_sofa_dir = self.data_dirs_path + self.data_dir + '/corrupted'
+        self.corrupted_sofa_dir =               self.data_dirs_path + self.data_dir + '/corrupted'
 
-        self.train_hrtf_dir = self.data_dirs_path + self.data_dir + '/hr/train'
-        self.valid_hrtf_dir = self.data_dirs_path + self.data_dir + '/hr/valid'
-        self.train_original_hrtf_dir = self.data_dirs_path + self.data_dir + '/original/train'
-        self.valid_original_hrtf_dir = self.data_dirs_path + self.data_dir + '/original/valid'
+        self.train_hrtf_dir =                   self.data_dirs_path + self.data_dir + '/hr/train'
+        self.valid_hrtf_dir =                   self.data_dirs_path + self.data_dir + '/hr/valid'
+        self.train_original_hrtf_dir =          self.data_dirs_path + self.data_dir + '/original/train'
+        self.valid_original_hrtf_dir =          self.data_dirs_path + self.data_dir + '/original/valid'
 
-        self.train_hrtf_merge_dir = self.data_dirs_path + self.data_dir + '/hr_merge/train'
-        self.valid_hrtf_merge_dir = self.data_dirs_path + self.data_dir + '/hr_merge/valid'
-        self.train_original_hrtf_merge_dir = self.data_dirs_path + self.data_dir + '/merge_original/train'
-        self.valid_original_hrtf_merge_dir = self.data_dirs_path + self.data_dir + '/merge_original/valid'
+        self.train_hrtf_merge_dir =             self.data_dirs_path + self.data_dir + '/hr_merge/train'
+        self.valid_hrtf_merge_dir =             self.data_dirs_path + self.data_dir + '/hr_merge/valid'
+        self.train_original_hrtf_merge_dir =    self.data_dirs_path + self.data_dir + '/merge_original/train'
+        self.valid_original_hrtf_merge_dir =    self.data_dirs_path + self.data_dir + '/merge_original/valid'
 
-        self.mean_std_filename = self.data_dirs_path + self.data_dir + '/mean_std_' + self.dataset
-        self.barycentric_hrtf_dir = self.data_dirs_path + self.baseline_dir + '/barycentric/valid'
-        self.hrtf_selection_dir = self.data_dirs_path + self.baseline_dir + '/hrtf_selection/valid'
+        self.mean_std_filename =                self.data_dirs_path + self.data_dir + '/mean_std_' + self.dataset
+        self.barycentric_hrtf_dir =             self.data_dirs_path + self.baseline_dir + '/barycentric/valid'
+        self.hrtf_selection_dir =               self.data_dirs_path + self.baseline_dir + '/hrtf_selection/valid'
+        self.noisegate_hrtf_dir =               self.data_dirs_path + self.baseline_dir + '/noise_gate/valid'
+        self.temporal_window_hrtf_dir =         self.data_dirs_path + self.baseline_dir + '/temporal_window/valid'
 
         # Training hyperparams
         self.batch_size = 1

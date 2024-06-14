@@ -130,7 +130,7 @@ def add_itd(az, el, hrir, side, fs=48000, r=0.0875, c=343):
     return delayed_hrir, sofa_delay
 
 
-def gen_sofa_file(config, sphere_coords, left_hrtf, right_hrtf, count, left_phase=None, right_phase=None):
+def gen_sofa_file(config, sphere_coords, left_hrtf, right_hrtf, count, left_phase=None, right_phase=None, nbins=None):
     el = np.degrees(sphere_coords[count][0])
     az = np.degrees(sphere_coords[count][1])
     source_position = [az + 360 if az < 0 else az, el, 1.2]
@@ -141,9 +141,12 @@ def gen_sofa_file(config, sphere_coords, left_hrtf, right_hrtf, count, left_phas
     if right_phase is None:
         right_hrtf[right_hrtf == 0.0] = 1.0e-08
         right_phase = np.imag(-hilbert(np.log(np.abs(right_hrtf))))
+    if nbins is None:
+        nbins = config.nbins_hrtf
+    #print("shape:", left_hrtf.shape, right_hrtf.shape)
 
-    left_hrir = scipy.fft.irfft(np.concatenate((np.array([0]), np.abs(left_hrtf[:config.nbins_hrtf-1]))) * np.exp(1j * left_phase))[:config.nbins_hrtf]
-    right_hrir = scipy.fft.irfft(np.concatenate((np.array([0]), np.abs(right_hrtf[:config.nbins_hrtf-1]))) * np.exp(1j * right_phase))[:config.nbins_hrtf]
+    left_hrir = scipy.fft.irfft(np.concatenate((np.array([0]), np.abs(left_hrtf[:nbins-1]))) * np.exp(1j * left_phase))[:nbins]
+    right_hrir = scipy.fft.irfft(np.concatenate((np.array([0]), np.abs(right_hrtf[:nbins-1]))) * np.exp(1j * right_phase))[:nbins]
 
     left_hrir, left_sample_delay = add_itd(az, el, left_hrir, side='left')
     right_hrir, right_sample_delay = add_itd(az, el, right_hrir, side='right')
@@ -154,7 +157,7 @@ def gen_sofa_file(config, sphere_coords, left_hrtf, right_hrtf, count, left_phas
     return source_position, full_hrir, delay
 
 
-def save_sofa(clean_hrtf, config, cube_coords, sphere_coords, sofa_path_output, phase=None):
+def save_sofa(clean_hrtf, config, cube_coords, sphere_coords, sofa_path_output, phase=None, nbins=None):
     full_hrirs = []
     source_positions = []
     delays = []
@@ -173,11 +176,11 @@ def save_sofa(clean_hrtf, config, cube_coords, sphere_coords, sofa_path_output, 
             right_hrtf = np.array(right_full_hrtf[count])
 
             if phase is None:
-                source_position, full_hrir, delay = gen_sofa_file(config, sphere_coords, left_hrtf, right_hrtf, count)
+                source_position, full_hrir, delay = gen_sofa_file(config, sphere_coords, left_hrtf, right_hrtf, count, nbins=nbins)
             else:
                 left_phase = np.array(left_full_phase[count])
                 right_phase = np.array(right_full_phase[count])
-                source_position, full_hrir, delay = gen_sofa_file(config, sphere_coords, left_hrtf, right_hrtf, count, left_phase, right_phase)
+                source_position, full_hrir, delay = gen_sofa_file(config, sphere_coords, left_hrtf, right_hrtf, count, left_phase, right_phase, nbins=nbins)
 
             full_hrirs.append(full_hrir)
             source_positions.append(source_position)
@@ -196,7 +199,7 @@ def save_sofa(clean_hrtf, config, cube_coords, sphere_coords, sofa_path_output, 
 
             left_hrtf = np.array(left_full_hrtf[i, j, k])
             right_hrtf = np.array(right_full_hrtf[i, j, k])
-            source_position, full_hrir, delay = gen_sofa_file(config, sphere_coords, left_hrtf, right_hrtf, count)
+            source_position, full_hrir, delay = gen_sofa_file(config, sphere_coords, left_hrtf, right_hrtf, count, nbins=nbins)
             full_hrirs.append(full_hrir)
             source_positions.append(source_position)
             delays.append(delay)
@@ -210,7 +213,7 @@ def save_sofa(clean_hrtf, config, cube_coords, sphere_coords, sofa_path_output, 
     sf.write_sofa(sofa_path_output, sofa)
 
 
-def convert_to_sofa(hrtf_dir, config, cube, sphere, phase_ext='_phase', use_phase=False, mag_ext='_mag'):
+def convert_to_sofa(hrtf_dir, config, cube, sphere, phase_ext='_phase', use_phase=False, mag_ext='_mag', nbins=None):
     if use_phase:
         sofa_path_output = hrtf_dir + '/sofa_with_phase/'
     else:
@@ -237,9 +240,9 @@ def convert_to_sofa(hrtf_dir, config, cube, sphere, phase_ext='_phase', use_phas
                     if f_phase == f:
                         with open(os.path.join(hrtf_dir, f), "rb") as phase_file:
                             phase = pickle.load(phase_file)
-                            save_sofa(hrtf, config, cube, sphere, sofa_output, phase)
+                            save_sofa(hrtf, config, cube, sphere, sofa_output, phase, nbins=nbins)
             else:
-                save_sofa(hrtf, config, cube, sphere, sofa_output)
+                save_sofa(hrtf, config, cube, sphere, sofa_output, nbins=nbins)
 
 
 def gen_sofa_preprocess(config, cube, sphere, sphere_original):

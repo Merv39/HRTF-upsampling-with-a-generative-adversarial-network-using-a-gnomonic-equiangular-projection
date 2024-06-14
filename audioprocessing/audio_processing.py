@@ -6,11 +6,12 @@ import pickle
 import torch
 import matplotlib.pyplot as plt
 
-from audioprocessing.visualiser import Visualiser
+# from audioprocessing.visualiser import Visualiser # If running from main.py
+# from visualiser import Visualiser # If running this script
 
 ORIGINAL_SOFA_PATH = r"C:\Users\March\Desktop\Msc AI\MSc Project\Sonicom_1.sofa"
 MODIFIED_SOFA_PATH = os.path.join('audioprocessing', 'modified_sofa_file.sofa')
-VERBOSE = True
+VERBOSE = False
 
 def debug(*str):
     if VERBOSE:
@@ -28,6 +29,14 @@ def wetdry(wet_signal: pf.Signal, dry_signal: pf.Signal, ratio: float) -> pf.Sig
     # Mix the wet and dry signals
     mixed_signal = ((1 - ratio) * dry_signal) + (ratio * wet_signal)
     return pf.Signal(mixed_signal, sample_rate)
+
+def read_sofa(sofa_path):
+    # Read SOFA file
+    sofa_data = sf.read_sofa(sofa_path)
+    sample_rate = sofa_data.Data_SamplingRate
+    audio_data = sofa_data.Data_IR
+    print(audio_data.shape)
+    return
 
 def modify_sofa(ORIGINAL_SOFA_PATH=ORIGINAL_SOFA_PATH, MODIFIED_SOFA_PATH=MODIFIED_SOFA_PATH, WETDRY=0.5):
     # Read SOFA file
@@ -125,10 +134,15 @@ def frequency_bin_mapping(signal:pf.Signal, target_bins=256):
     return power_of_two_freqs
 
 
-# Reverb in training
-def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5):
+
+def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5, truncate=True):
+    """ Apply reverb to hrtf. Expects hrtf of shape [256, 5, 16, 16] (CHANNELS, PANELS, X, Y)
+    Returns hrtf of shape [256, 5, 16, 16]
+    """
     # Read and Convert Impulse Response to the Frequency Domain
-    reverb_signal = pf.io.read_audio("audioprocessing/IMP-classroom.wav")
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    filepath = os.path.join(current_dir, 'IMP-classroom.wav')
+    reverb_signal = pf.io.read_audio(filepath)
 
     # Convert pyfar signal to pytorch tensor
     #TODO: Apply FFT with the power spectrum for each channel to represent a power of 2
@@ -143,27 +157,77 @@ def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5):
 
     dims = hr_hrtf.shape
     FREQUENCY_BINS = dims[0]; PANELS = dims[1]; X = dims[2]; Y = dims[3]
-    debug("hrtf shape", hr_hrtf.shape)
-    debug(hr_hrtf[0][0][0][0])
+    #print("hrtf shape:", hr_hrtf.shape)
+    # debug(hr_hrtf[0][0][0][0])
     
     # Apply convolution in frequency domain
     # Convolve for each point on each panel
+        # Apply convolution in frequency domain
+    # Convolve for each point on each panel
+    # lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
+    # for x in range(X):
+    #     for y in range(Y):
+    #         for panels in range(PANELS):
+    #             convolved_signal = np.convolve(lr_hrtf[panels][x][y], power_reverb_signal, mode='full')
+    #             # Truncate the result to match the size of the hrtf signal
+    #             #convolved_signal = torch.from_numpy(convolved_signal[:FREQUENCY_BINS])
+    #             convolved_signal = torch.from_numpy(convolved_signal)
+    #             debug(convolved_signal.shape)
+    #             lr_hrtf[panels][x][y] = convolved_signal
+    # lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
+
     lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
+    if truncate:
+        convolved_hrtf = lr_hrtf  #original tensor size; values are replaced anyway
+    else:
+        convolved_hrtf = torch.zeros(5, 16, 16, 511) #tensor large enough to hold all the convolved values
     for x in range(X):
         for y in range(Y):
             for panels in range(PANELS):
+                check_signal(lr_hrtf[panels][x][y], "freq", "Original")
                 convolved_signal = np.convolve(lr_hrtf[panels][x][y], power_reverb_signal, mode='full')
+                check_signal(convolved_signal, "freq", "Convolved")
                 # Truncate the result to match the size of the hrtf signal
-                convolved_signal = torch.from_numpy(convolved_signal[:FREQUENCY_BINS])
+                if truncate:
+                    convolved_signal = torch.from_numpy(convolved_signal[:FREQUENCY_BINS])
+                else:
+                    convolved_signal = torch.from_numpy(convolved_signal)
                 debug(convolved_signal.shape)
-                lr_hrtf[panels][x][y] = convolved_signal
-    lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
+                convolved_hrtf[panels][x][y] = convolved_signal
+    lr_hrtf = convolved_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
     debug("Tensors same:", torch.equal(hr_hrtf, lr_hrtf))
     return lr_hrtf
 
-#testing
+def check_signal(data:np.ndarray, input_domain:str, *str):
+    """ checks the shape of the signal, in both time and frequency domain
+    """
+    signal = None
+    sampling_rate = 44115
+    signal = pf.Signal(data, sampling_rate, domain=input_domain)
+    debug(str, "Frequency shape:", signal.freq.shape)
+    debug(str, "Time shape:", signal.time.shape)
+
+from blind_rt60 import BlindRT60
+from scipy.io import wavfile
+def calculate_RT60(filepath):
+    estimator = BlindRT60()
+
+    # load signal x and sampling frequency
+    fs, x = wavfile.read(filepath)
+
+    # rt60_estimate = estimator(x, fs)
+    
+    #visualise results
+    fig = estimator.visualize(x, fs)
+    plt.show()
+
+#  --testing--
 # modify_sofa()
 # Visualiser(MODIFIED_SOFA_PATH)
-modify_pickle("audioprocessing/Sonicom_mag_1.pickle") #from hr_merge
-
-# for every sofa file in the dataset, apply audio effect
+#Visualiser(r"c:\Users\March\Desktop\Msc AI\MSc Project\Sonicom_1.sofa")
+# read_sofa(r"c:\Users\March\Desktop\Msc AI\MSc Project\Sonicom_1.sofa")
+# read_sofa(r"c:\Users\March\Desktop\Msc AI\MSc Project\Reverberated_Sonicom_1.sofa")
+# current_dir = os.path.dirname(os.path.abspath(__file__))
+# filepath = os.path.join(current_dir, 'IMP-classroom.wav')
+# calculate_RT60(filepath)
+# modify_pickle("audioprocessing/Sonicom_mag_1.pickle") #from hr_merge

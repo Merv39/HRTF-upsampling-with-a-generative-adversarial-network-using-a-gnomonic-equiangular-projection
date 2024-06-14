@@ -19,6 +19,8 @@ from evaluation.evaluation import run_lsd_evaluation, run_localisation_evaluatio
 from hrtfdata.full import SONICOM
 
 from audioprocessing.audio_processing import modify_sofa
+from baselines.noise_gate import run_noisegate_baseline
+from baselines.temporal_window import run_temporal_window_baseline
 
 PI_4 = np.pi / 4
 
@@ -160,6 +162,46 @@ def main(config, mode):
 
         file_ext = f'loc_errors_barycentric_interpolated_data_{config.upscale_factor}.pickle'
         run_localisation_evaluation(config, barycentric_output_path, file_ext)
+
+    elif mode == 'temporal_window_baseline':
+        #TODO: implement a baseline where the time of the impulse is truncated to a certain window before audio reflections occur
+        temporal_window_data_folder = f'/temporal_window_interpolated_data_{config.upscale_factor}'
+        temporal_window_output_path = config.temporal_window_hrtf_dir + temporal_window_data_folder
+        cube, sphere = run_temporal_window_baseline(config, temporal_window_output_path)
+
+        if config.gen_sofa_flag:
+            convert_to_sofa(temporal_window_output_path, config, cube, sphere)
+            print('Created temporal window baseline sofa files')
+
+        config.path = config.temporal_window_hrtf_dir
+
+        file_ext = f'lsd_errors_temporal_window_interpolated_data_{config.upscale_factor}.pickle'
+        run_lsd_evaluation(config, temporal_window_output_path, file_ext)
+
+        file_ext = f'loc_errors_temporal_window_interpolated_data_{config.upscale_factor}.pickle'
+        run_localisation_evaluation(config, temporal_window_output_path, file_ext)
+
+    elif mode == 'noise_gate_baseline':
+        #TODO: implement a noise gate
+        noisegate_data_folder = f'/noisegate_interpolated_data_{config.upscale_factor}'
+        noisegate_output_path = config.noisegate_hrtf_dir + noisegate_data_folder
+        cube, sphere = run_noisegate_baseline(config, noisegate_output_path)
+
+        if config.gen_sofa_flag:
+            convert_to_sofa(noisegate_output_path, config, cube, sphere)
+            print('Created noise gate baseline sofa files')
+
+        config.path = config.noisegate_hrtf_dir
+
+        file_ext = f'lsd_errors_noisegate_interpolated_data_{config.upscale_factor}.pickle'
+        run_lsd_evaluation(config, noisegate_output_path, file_ext)
+
+        file_ext = f'loc_errors_noisegate_interpolated_data_{config.upscale_factor}.pickle'
+        run_localisation_evaluation(config, noisegate_output_path, file_ext)
+
+    elif mode == 'noise_suppression':
+        #TODO: implement a noise gate
+        pass
 
     elif mode == 'hrtf_selection_baseline':
 
