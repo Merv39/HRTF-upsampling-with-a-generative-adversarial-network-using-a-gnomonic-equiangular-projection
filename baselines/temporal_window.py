@@ -85,15 +85,7 @@ def run_temporal_window_baseline(config, temporal_window_output_path, subject_fi
 
         lr_hrtf_left = lr_hrtf[:, :, :, :config.nbins_hrtf]
         lr_hrtf_right = lr_hrtf[:, :, :, config.nbins_hrtf:]
-
-        # # SD metric for right ear
-        # sd_right = spectral_distortion_metric(lr_hrtf_right, hr_hrtf_right)
-        # # SD metric for left ear
-        # sd_left = spectral_distortion_metric(lr_hrtf_left, hr_hrtf_left)
-        # # average for left & right
-        # sd_avg = (sd_right + sd_left) / 2.
-        # # add to running total
-        # print("Average LSD:", sd_avg)
+        #TODO: temporal window (Time domain)
 
         # modify left and right hrtf individually then merge
         temporal_window_hr_merged = torch.tensor(np.concatenate((lr_hrtf_left, lr_hrtf_right), axis=3))

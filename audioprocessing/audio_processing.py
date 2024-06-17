@@ -159,22 +159,6 @@ def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5, truncate=True):
     FREQUENCY_BINS = dims[0]; PANELS = dims[1]; X = dims[2]; Y = dims[3]
     #print("hrtf shape:", hr_hrtf.shape)
     # debug(hr_hrtf[0][0][0][0])
-    
-    # Apply convolution in frequency domain
-    # Convolve for each point on each panel
-        # Apply convolution in frequency domain
-    # Convolve for each point on each panel
-    # lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
-    # for x in range(X):
-    #     for y in range(Y):
-    #         for panels in range(PANELS):
-    #             convolved_signal = np.convolve(lr_hrtf[panels][x][y], power_reverb_signal, mode='full')
-    #             # Truncate the result to match the size of the hrtf signal
-    #             #convolved_signal = torch.from_numpy(convolved_signal[:FREQUENCY_BINS])
-    #             convolved_signal = torch.from_numpy(convolved_signal)
-    #             debug(convolved_signal.shape)
-    #             lr_hrtf[panels][x][y] = convolved_signal
-    # lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
 
     lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
     if truncate:

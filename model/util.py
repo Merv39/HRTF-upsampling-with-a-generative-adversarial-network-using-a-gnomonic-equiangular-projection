@@ -85,11 +85,39 @@ def progress(i, batches, n, num_epochs, timed):
     message = 'batch {} of {}, epoch {} of {}'.format(i, batches, n, num_epochs)
     print(f"Progress: {message}, Time per iter: {timed}")
 
-
+DEBUG_NAN = True
 def spectral_distortion_inner(input_spectrum, target_spectrum):
-    numerator = target_spectrum
-    denominator = input_spectrum
-    return torch.mean((20 * torch.log10(numerator / denominator)) ** 2)
+
+    epsilon = 1e-10  # Small value to prevent division by zero and log(0)
+
+    # Prevent division by zero
+    denominator = input_spectrum.clamp(min=epsilon)
+
+    # Compute the ratio
+    ratio = target_spectrum / denominator
+
+    # Check for NaNs after division
+    if torch.isnan(ratio).any() and DEBUG_NAN:
+        raise ValueError("NaNs found in ratio after division")
+
+    # Prevent taking the logarithm of zero or negative values
+    ratio = ratio.clamp(min=epsilon)
+
+    # Compute the log ratio
+    log_ratio = 20 * torch.log10(ratio)
+
+    # Check for NaNs in the log ratio
+    if torch.isnan(log_ratio).any() and DEBUG_NAN:
+        raise ValueError("NaNs found in log_ratio")
+
+    # Compute the mean squared value
+    distortion_metric = torch.mean(log_ratio ** 2)
+
+    # Check for NaNs in the final distortion metric
+    if torch.isnan(distortion_metric).any() and DEBUG_NAN:
+        raise ValueError("NaNs found in distortion_metric")
+
+    return distortion_metric
 
 
 def spectral_distortion_metric(generated, target, reduction='mean'):
@@ -104,15 +132,26 @@ def spectral_distortion_metric(generated, target, reduction='mean'):
     width = generated.size(4)
     total_positions = num_panels * height * width
 
+    if (torch.isnan(generated).any() or torch.isnan(target).any()) and DEBUG_NAN:
+        raise ValueError("Input tensors contain NaN values.")
+    elif (total_positions == 0 or batch_size == 0) and DEBUG_NAN:
+        raise ValueError("Total positions or batch size is zero, leading to division by zero.")
+
     total_sd_metric = 0
     for b in range(batch_size):
         total_all_positions = 0
         for i in range(num_panels):
             for j in range(height):
                 for k in range(width):
-                    average_over_frequencies = spectral_distortion_inner(generated[b, :, i, j, k],
-                                                                         target[b, :, i, j, k])
+                    average_over_frequencies = spectral_distortion_inner(
+                                                    generated[b, :, i, j, k],
+                                                    target[b, :, i, j, k])
+                    if torch.isnan(average_over_frequencies) and DEBUG_NAN: raise ValueError("spectral_distortion_inner returned NaN.")
+                    
                     total_all_positions += torch.sqrt(average_over_frequencies)
+
+                    if torch.isnan(total_all_positions) and DEBUG_NAN: raise ValueError("Square root of negative value encountered.")
+                    
         sd_metric = total_all_positions / total_positions
         total_sd_metric += sd_metric
 
@@ -122,7 +161,6 @@ def spectral_distortion_metric(generated, target, reduction='mean'):
         output_loss = total_sd_metric
     else:
         raise RuntimeError("Please specify a valid method for reduction (either 'mean' or 'sum').")
-
     return output_loss
 
 

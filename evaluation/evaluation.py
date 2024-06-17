@@ -14,29 +14,37 @@ import numpy as np
 
 import matlab.engine
 
-def replace_nodes(config, sr_dir, file_name):
-    # Overwrite the generated points that exist in the original data
+DISABLE_LOCALISATION_EVALUATION = True
+KEEP_NODES = True
+
+def load_hrtfs(config, sr_dir, file_name, replace_nodes = False):
+    '''Returns the target HRTF and the GAN HRTF'''
     with open(config.valid_hrtf_merge_dir + file_name, "rb") as f:
         hr_hrtf = pickle.load(f)
 
     with open(sr_dir + file_name, "rb") as f:
         sr_hrtf = pickle.load(f)
 
-    lr_hrtf = torch.permute(
-        modify_hrtf(torch.permute(hr_hrtf, (3, 0, 1, 2))),
-        (1, 2, 3, 0))
+    if replace_nodes:
+        lr_hrtf = torch.permute(
+            modify_hrtf(torch.permute(hr_hrtf, (3, 0, 1, 2))),
+            (1, 2, 3, 0)
+        )
 
-    lr = lr_hrtf.detach().cpu()
-    for p in range(5):
-        for w in range(config.hrtf_size):
-            for h in range(config.hrtf_size):
-                if hr_hrtf[p, w, h] in lr:
-                    sr_hrtf[p, w, h] = hr_hrtf[p, w, h]
+        lr = lr_hrtf.detach().cpu()
+        for p in range(5):
+            for w in range(config.hrtf_size):
+                for h in range(config.hrtf_size):
+                    if hr_hrtf[p, w, h] in lr:
+                        sr_hrtf[p, w, h] = hr_hrtf[p, w, h]
 
     generated = torch.permute(sr_hrtf[:, None], (1, 4, 0, 2, 3))
     target = torch.permute(hr_hrtf[:, None], (1, 4, 0, 2, 3))
 
     return target, generated
+
+def replace_nodes(config, sr_dir, file_name):
+    return load_hrtfs(config, sr_dir, file_name, replace_nodes=True)
 
 def run_lsd_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
     '''sr_dir = directory of the superresolution HRTFs
@@ -50,16 +58,9 @@ def run_lsd_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
         valid_data_file_names = ['/' + os.path.basename(x) for x in valid_data_paths]
 
         for file_name in valid_data_file_names:
-            # Overwrite the generated points that exist in the original data
-            with open(config.valid_hrtf_merge_dir + file_name, "rb") as f:
-                hr_hrtf = pickle.load(f)
+            target, generated = load_hrtfs(config, sr_dir, f'{hrtf_selection}.pickle')
 
-            with open(f'{sr_dir}/{hrtf_selection}.pickle', "rb") as f:
-                sr_hrtf = pickle.load(f)
-
-            generated = torch.permute(sr_hrtf[:, None], (1, 4, 0, 2, 3))
-            target = torch.permute(hr_hrtf[:, None], (1, 4, 0, 2, 3))
-
+            # Calculate and print LSD Error
             error = spectral_distortion_metric(generated, target)
             subject_id = ''.join(re.findall(r'\d+', file_name))
             lsd_errors.append([subject_id,  float(error.detach())])
@@ -71,12 +72,15 @@ def run_lsd_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
 
         lsd_errors = []
         for file_name in sr_data_file_names:
-            target, generated = replace_nodes(config, sr_dir, file_name)
-            if torch.equal(generated, target):
-                print("ERROR, TARGET AND GENERATED HRTF ARE THE SAME")
-            else:
-                print("Generated Shape:", generated.shape)
-                print("Target Shape:", target.shape)
+            target, generated = load_hrtfs(config, sr_dir, file_name, replace_nodes=not KEEP_NODES)
+
+            # if torch.equal(generated, target):
+            #     print("ERROR, TARGET AND GENERATED HRTF ARE THE SAME")
+            # else:
+            #     print("Generated Shape:", generated.shape)
+            #     print("Target Shape:", target.shape)
+            
+            # Calculate and print LSD Error
             error = spectral_distortion_metric(generated, target)
             subject_id = ''.join(re.findall(r'\d+', file_name))
             lsd_errors.append([subject_id,  float(error.detach())])
@@ -87,6 +91,7 @@ def run_lsd_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
         pickle.dump(lsd_errors, file)
 
 def run_localisation_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
+    if DISABLE_LOCALISATION_EVALUATION: return
 
     file_ext = 'loc_errors.pickle' if file_ext is None else file_ext
 
