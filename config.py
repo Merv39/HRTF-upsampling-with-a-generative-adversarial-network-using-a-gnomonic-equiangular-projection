@@ -86,6 +86,7 @@ class Config:
         self.hrtf_selection_dir =               self.data_dirs_path + self.baseline_dir + '/hrtf_selection/valid'
         self.noisegate_hrtf_dir =               self.data_dirs_path + self.baseline_dir + '/noise_gate/valid'
         self.temporal_window_hrtf_dir =         self.data_dirs_path + self.baseline_dir + '/temporal_window/valid'
+        self.reverb_hrtf_dir =                  self.data_dirs_path + self.baseline_dir + '/reverb/valid'
 
         # Training hyperparams
         self.batch_size = 1

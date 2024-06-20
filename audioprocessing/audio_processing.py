@@ -180,6 +180,49 @@ def goertzel_algorithm_freq(signal_freq:np.ndarray, fs, target_bins=256) -> np.n
     
     return signal_freq
 
+def apply_to_hrtf_points(hrtf:torch.Tensor, func:callable, *args, **kwargs):
+    '''Takes in HRTF of shape [5, 16, 16, 256] [PANELS, X, Y, CHANNELS] and applys a function to each point in the frequency domain'''
+    dims = hrtf.shape
+    PANELS = dims[0]; X = dims[1]; Y = dims[2]; CHANNELS = dims[3]
+
+    modified_hrtf = hrtf.clone()  #original tensor size; values are replaced anyway
+    for x in range(X):
+        for y in range(Y):
+            for panels in range(PANELS):
+                modified_signal = func(hrtf[panels][x][y], *args, **kwargs)
+
+                modified_signal = torch.from_numpy(
+                    goertzel_algorithm_freq(modified_signal, fs=config.HRIR_SAMPLERATE)
+                )
+
+                debug(modified_signal.shape)
+                modified_hrtf[panels][x][y] = np.abs(modified_signal)
+
+    return modified_hrtf
+
+def apply_to_hrir_points(hrtf:torch.Tensor, func:callable, *args, **kwargs):
+    '''Takes in HRTF of shape [5, 16, 16, 256] [PANELS, X, Y, CHANNELS] and applys a function to each point in the time domain'''
+    dims = hrtf.shape
+    PANELS = dims[0]; X = dims[1]; Y = dims[2]; CHANNELS = dims[3]
+
+    modified_hrtf = hrtf.clone()  #original tensor size; values are replaced anyway
+
+    for x in range(X):
+        for y in range(Y):
+            for panels in range(PANELS):
+                hrir_point = np.fft.ifft(hrtf[panels][x][y])
+                hrir_point = func(hrir_point, *args)
+                modified_signal = np.fft.fft(hrir_point)
+
+                modified_signal = torch.from_numpy(
+                    goertzel_algorithm_freq(modified_signal, fs=config.HRIR_SAMPLERATE)
+                )
+
+                debug(modified_signal.shape)
+                modified_hrtf[panels][x][y] = np.abs(modified_signal)
+
+    return modified_hrtf
+
 def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5, truncate=True):
     """ Apply reverb to hrtf. Expects hrtf of shape [256, 5, 16, 16] (CHANNELS, PANELS, X, Y)
     Returns hrtf of shape [256, 5, 16, 16]
@@ -199,36 +242,9 @@ def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5, truncate=True):
     debug(abs(reverb_signal.freq[0][500]))
     power_reverb_signal = torch.from_numpy(frequency_bin_mapping(reverb_signal))
 
-
-    dims = hr_hrtf.shape
-    FREQUENCY_BINS = dims[0]; PANELS = dims[1]; X = dims[2]; Y = dims[3]
-    #print("hrtf shape:", hr_hrtf.shape)
-    # debug(hr_hrtf[0][0][0][0])
-
     lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
-    if truncate:
-        convolved_hrtf = lr_hrtf  #original tensor size; values are replaced anyway
-    else:
-        convolved_hrtf = torch.zeros(5, 16, 16, 511) #tensor large enough to hold all the convolved values
-    for x in range(X):
-        for y in range(Y):
-            for panels in range(PANELS):
-                check_signal(lr_hrtf[panels][x][y], "freq", "Original")
-                convolved_signal = np.convolve(lr_hrtf[panels][x][y], power_reverb_signal, mode='full')
-                check_signal(convolved_signal, "freq", "Convolved")
-                # Truncate the result to match the size of the hrtf signal
-                if truncate:
-                    # convolved_signal = torch.from_numpy(
-                    #     frequency_bin_mapping_freq_domain(convolved_signal, fs=config.HRIR_SAMPLERATE)
-                    # )
-                    convolved_signal = torch.from_numpy(
-                        goertzel_algorithm_freq(convolved_signal, fs=config.HRIR_SAMPLERATE)
-                    )
-                else:
-                    convolved_signal = torch.from_numpy(convolved_signal)
-                debug(convolved_signal.shape)
-                convolved_hrtf[panels][x][y] = convolved_signal
-    lr_hrtf = convolved_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
+    lr_hrtf = apply_to_hrtf_points(lr_hrtf, np.convolve, power_reverb_signal, mode='full')
+    lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
     debug("Tensors same:", torch.equal(hr_hrtf, lr_hrtf))
     return lr_hrtf
 

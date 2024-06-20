@@ -72,9 +72,7 @@ def run_lsd_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
 
         lsd_errors = []
         for file_name in sr_data_file_names:
-            print(sr_data_file_names)
             target, generated = load_hrtfs(config, sr_dir, file_name, replace_nodes=not KEEP_NODES)
-            print(generated)
 
             # if torch.equal(generated, target):
             #     print("ERROR, TARGET AND GENERATED HRTF ARE THE SAME")

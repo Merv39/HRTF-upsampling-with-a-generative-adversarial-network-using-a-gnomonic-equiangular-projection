@@ -21,6 +21,7 @@ from hrtfdata.full import SONICOM
 from audioprocessing.audio_processing import modify_sofa
 from baselines.noise_gate import run_noisegate_baseline
 from baselines.temporal_window import run_temporal_window_baseline
+from baselines.reverb import run_reverb_baseline
 
 PI_4 = np.pi / 4
 
@@ -163,6 +164,26 @@ def main(config, mode):
         file_ext = f'loc_errors_barycentric_interpolated_data_{config.upscale_factor}.pickle'
         run_localisation_evaluation(config, barycentric_output_path, file_ext)
 
+    elif mode == 'reverb_baseline':
+        # no change
+        # Get Coordinated from projection file
+        projection_filename = f'{config.projection_dir}/{config.dataset}_projection_{config.hrtf_size}'
+        with open(projection_filename, "rb") as f:
+            (cube, sphere, _, _) = pickle.load(f)
+
+        reverb_data_folder = f'/reverb_interpolated_data_{config.upscale_factor}'
+        reverb_output_path = config.reverb_hrtf_dir + reverb_data_folder
+        run_reverb_baseline(config, reverb_output_path)
+
+        if config.gen_sofa_flag:
+            convert_to_sofa(reverb_output_path, config, cube, sphere)
+            print('Created reverb baseline sofa files')
+
+        config.path = config.reverb_hrtf_dir
+
+        file_ext = f'lsd_errors_reverb_interpolated_data_{config.upscale_factor}.pickle'
+        run_lsd_evaluation(config, reverb_output_path, file_ext)
+
     elif mode == 'temporal_window_baseline':
         #TODO: implement a baseline where the time of the impulse is truncated to a certain window before audio reflections occur
 
@@ -173,7 +194,7 @@ def main(config, mode):
 
         temporal_window_data_folder = f'/temporal_window_interpolated_data_{config.upscale_factor}'
         temporal_window_output_path = config.temporal_window_hrtf_dir + temporal_window_data_folder
-        run_temporal_window_baseline(config, temporal_window_output_path, cube, sphere)
+        run_temporal_window_baseline(config, temporal_window_output_path)
 
         if config.gen_sofa_flag:
             convert_to_sofa(temporal_window_output_path, config, cube, sphere)
