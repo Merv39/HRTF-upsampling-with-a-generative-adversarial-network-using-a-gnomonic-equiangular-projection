@@ -162,7 +162,8 @@ class Generator(nn.Module):
         out = self.trunk(out1)
         out2 = self.conv_block2(out)
         out = torch.add(out1, out2)
-        out = self.upsampling(out)
+        if self.num_upsampling_blocks != 0:
+            out = self.upsampling(out)
         out = self.conv_block3(out)
         out = self.classifier(out)
 

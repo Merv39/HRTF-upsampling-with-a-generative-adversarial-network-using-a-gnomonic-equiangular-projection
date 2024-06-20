@@ -143,7 +143,6 @@ def gen_sofa_file(config, sphere_coords, left_hrtf, right_hrtf, count, left_phas
         right_phase = np.imag(-hilbert(np.log(np.abs(right_hrtf))))
     if nbins is None:
         nbins = config.nbins_hrtf
-    #print("shape:", left_hrtf.shape, right_hrtf.shape)
 
     left_hrir = scipy.fft.irfft(np.concatenate((np.array([0]), np.abs(left_hrtf[:nbins-1]))) * np.exp(1j * left_phase))[:nbins]
     right_hrir = scipy.fft.irfft(np.concatenate((np.array([0]), np.abs(right_hrtf[:nbins-1]))) * np.exp(1j * right_phase))[:nbins]
@@ -156,8 +155,8 @@ def gen_sofa_file(config, sphere_coords, left_hrtf, right_hrtf, count, left_phas
 
     return source_position, full_hrir, delay
 
-
-def save_sofa(clean_hrtf, config, cube_coords, sphere_coords, sofa_path_output, phase=None, nbins=None):
+def hrtf_to_hrir(clean_hrtf, config, cube_coords, sphere_coords, phase=None, nbins=None):
+    '''Takes in the same hrtf format as the pickle files and returns sofa.Data_IRs'''
     full_hrirs = []
     source_positions = []
     delays = []
@@ -205,7 +204,11 @@ def save_sofa(clean_hrtf, config, cube_coords, sphere_coords, sofa_path_output, 
             delays.append(delay)
             count += 1
 
+    return full_hrirs, source_positions, delays
+
+def save_sofa(clean_hrtf, config, cube_coords, sphere_coords, sofa_path_output, phase=None, nbins=None):
     sofa = sf.Sofa("SimpleFreeFieldHRIR")
+    full_hrirs, source_positions, delays = hrtf_to_hrir(clean_hrtf, config, cube_coords, sphere_coords, phase, nbins)
     sofa.Data_IR = full_hrirs
     sofa.Data_SamplingRate = config.hrir_samplerate
     sofa.Data_Delay = delays

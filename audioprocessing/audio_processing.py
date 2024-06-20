@@ -5,6 +5,7 @@ import numpy as np
 import pickle
 import torch
 import matplotlib.pyplot as plt
+import config
 
 # from audioprocessing.visualiser import Visualiser # If running from main.py
 # from visualiser import Visualiser # If running this script
@@ -106,13 +107,16 @@ def frequency_bin_mapping(signal:pf.Signal, target_bins=256):
     # Perform FFT
     fft_result = np.fft.fft(signal)
 
+    return frequency_bin_mapping_freq_domain(fft_result, fs, target_bins=target_bins)
+
+def frequency_bin_mapping_freq_domain(freq_signal:np.ndarray, fs, target_bins=256):
     # Calculate frequency bins
-    n = len(signal)
+    n = len(freq_signal)
     freqs = np.fft.fftfreq(n, d=1/fs)
 
     # Only take the positive part of the spectrum
     positive_freqs = freqs[:n//2]
-    positive_fft_result = fft_result[:n//2]
+    positive_fft_result = freq_signal[:n//2]
 
     # Map frequency bins to powers of two
     power_of_two_bins = 2 ** np.arange(int(np.log2(n//2)))
@@ -133,7 +137,48 @@ def frequency_bin_mapping(signal:pf.Signal, target_bins=256):
     power_of_two_freqs = np.pad(power_of_two_freqs, (0, target_bins-len(power_of_two_freqs)), mode='constant')
     return power_of_two_freqs
 
+# modified from https://dsp.stackexchange.com/a/40821
+def goertzel_algorithm_time(signal_time:np.ndarray, fs, plot=False) -> tuple[np.ndarray, np.ndarray]:
+    '''takes signal in time domain returns the shortened signal in frequency and time domain
+    '''
+    L = len(signal_time) #length in the time domain
 
+    # Calculate full FFT for reference
+    signal_freq = np.fft.fft(signal_time)
+    f1 = np.linspace(0, fs, L, endpoint=False)
+
+    # Calculate every 2nd sample of FFT
+    # Perform the aliasing operation in time domain
+    if L % 2 == 0:
+        signal_time2 = signal_time[:L//2] + signal_time[L//2:]
+    else:
+        signal_time2 = signal_time[:L//2] + signal_time[L//2+1:]
+    signal_freq2 = np.fft.fft(signal_time2)
+    f2 = np.linspace(0, fs, L//2, endpoint=False)
+
+    if plot:
+        plt.plot(f2, abs(signal_freq2), 'go-')
+        plt.plot(f1, abs(signal_freq), 'rx-')
+
+        plt.xlim((0, fs/2))
+        plt.show()
+    return signal_time2, signal_freq2
+
+def goertzel_algorithm_freq(signal_freq:np.ndarray, fs, target_bins=256) -> np.ndarray:
+    '''Input: frequency domain signal
+    Returns: shortened frequency domain signal'''
+    #inverse FFT to time domain
+    signal_time = np.fft.ifft(signal_freq)
+
+    #while frequency bins is not the desired number, keep repeating
+    while len(signal_freq) > target_bins:
+        signal_time, signal_freq = goertzel_algorithm_time(signal_time, fs)
+    
+    if len(signal_freq) < target_bins:
+        #pad to correct target
+        signal_freq = np.pad(signal_freq, pad_width=(0, target_bins-len(signal_freq)), mode='constant', constant_values=0.0)
+    
+    return signal_freq
 
 def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5, truncate=True):
     """ Apply reverb to hrtf. Expects hrtf of shape [256, 5, 16, 16] (CHANNELS, PANELS, X, Y)
@@ -173,7 +218,12 @@ def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5, truncate=True):
                 check_signal(convolved_signal, "freq", "Convolved")
                 # Truncate the result to match the size of the hrtf signal
                 if truncate:
-                    convolved_signal = torch.from_numpy(convolved_signal[:FREQUENCY_BINS])
+                    # convolved_signal = torch.from_numpy(
+                    #     frequency_bin_mapping_freq_domain(convolved_signal, fs=config.HRIR_SAMPLERATE)
+                    # )
+                    convolved_signal = torch.from_numpy(
+                        goertzel_algorithm_freq(convolved_signal, fs=config.HRIR_SAMPLERATE)
+                    )
                 else:
                     convolved_signal = torch.from_numpy(convolved_signal)
                 debug(convolved_signal.shape)

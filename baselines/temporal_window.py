@@ -6,8 +6,10 @@ import torch
 import shutil
 import re
 from pathlib import Path
+import pyfar as pf
 
 from audioprocessing.audio_processing import reverberate_hrtf
+from preprocessing.utils import hrtf_to_hrir, trim_hrir, calc_hrtf
 '''
 def run_temporal_window_baseline(config, temporal_window_output_path, subject_file=None):
 
@@ -57,7 +59,7 @@ def run_temporal_window_baseline(config, temporal_window_output_path, subject_fi
 '''
 from model.util import spectral_distortion_metric
 
-def run_temporal_window_baseline(config, temporal_window_output_path, subject_file=None):
+def run_temporal_window_baseline(config, temporal_window_output_path, cube, sphere, subject_file=None):
 
     if subject_file is None:
         valid_data_paths = glob.glob('%s/%s_*' % (config.valid_hrtf_merge_dir, config.dataset))
@@ -69,10 +71,6 @@ def run_temporal_window_baseline(config, temporal_window_output_path, subject_fi
     shutil.rmtree(Path(temporal_window_output_path), ignore_errors=True)
     Path(temporal_window_output_path).mkdir(parents=True, exist_ok=True)
 
-    # construct dicts of all HRTFs from the training data for left and right ears
-    hrtf_dict_left = {}
-    hrtf_dict_right = {}
-    subj_ids = []
     for file_name in valid_data_file_names:
         with open(config.valid_hrtf_merge_dir + file_name, "rb") as f:
             hr_hrtf = pickle.load(f)
@@ -85,10 +83,25 @@ def run_temporal_window_baseline(config, temporal_window_output_path, subject_fi
 
         lr_hrtf_left = lr_hrtf[:, :, :, :config.nbins_hrtf]
         lr_hrtf_right = lr_hrtf[:, :, :, config.nbins_hrtf:]
-        #TODO: temporal window (Time domain)
+        #TODO: temporal window (Truncate in the time domain)
+        '''
+        A hrtf is measured with speakers around a person which play a sine sweep.
+        Microphones are placed in each ear to measure the change in frequencies arriving into the ear.
+        In real life, the trucation time would be determined by calculating the distance from the speaker to the ear.
+        '''
+        # Convert the HRTFs into HRIRs
+        lr_hrir, _ , _ = hrtf_to_hrir(lr_hrtf, config, cube, sphere)
+
+        # Apply truncation in the time domain
+        #lr_hrir = trim_hrir(lr_hrir, ..., ...)
+
+        # Apply FFT to return to the frequency domain
+        lr_hrtf = calc_hrtf(config, lr_hrir)
+        print("modified:", lr_hrtf.shape)
 
         # modify left and right hrtf individually then merge
         temporal_window_hr_merged = torch.tensor(np.concatenate((lr_hrtf_left, lr_hrtf_right), axis=3))
+        print("goal:", temporal_window_hr_merged.shape)
 
         with open(temporal_window_output_path + file_name, "wb") as file:
             pickle.dump(temporal_window_hr_merged, file)
