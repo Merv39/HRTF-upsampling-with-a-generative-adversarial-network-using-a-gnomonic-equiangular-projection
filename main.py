@@ -15,7 +15,7 @@ from preprocessing.utils import interpolate_fft, generate_euclidean_cube, conver
 from model import util
 from baselines.barycentric_interpolation import run_barycentric_interpolation
 from baselines.hrtf_selection import run_hrtf_selection
-from evaluation.evaluation import run_lsd_evaluation, run_localisation_evaluation
+from evaluation.evaluation import run_lsd_evaluation, run_localisation_evaluation, run_rt60_evaluation
 from hrtfdata.full import SONICOM
 
 from audioprocessing.audio_processing import modify_sofa
@@ -182,6 +182,7 @@ def main(config, mode):
         config.path = config.reverb_hrtf_dir
 
         file_ext = f'lsd_errors_reverb_interpolated_data_{config.upscale_factor}.pickle'
+        run_rt60_evaluation(config, reverb_output_path, file_ext)
         run_lsd_evaluation(config, reverb_output_path, file_ext)
 
     elif mode == 'temporal_window_baseline':

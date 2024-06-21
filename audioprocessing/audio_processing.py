@@ -5,6 +5,14 @@ import numpy as np
 import pickle
 import torch
 import matplotlib.pyplot as plt
+
+# so that it can import as if from project root directory
+import sys
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
+# for p in sys.path:
+#     print( p )
+
 import config
 
 # from audioprocessing.visualiser import Visualiser # If running from main.py
@@ -88,6 +96,8 @@ def modify_pickle(filepath:str):
 
     # modify hrtf
     modified_hrtf = reverberate_hrtf(original_hrtf, wetdry)
+
+    print(modified_hrtf.shape)
     
     return {"lr": modified_hrtf, "hr": original_hrtf, "filename": filepath}
 
@@ -149,10 +159,11 @@ def goertzel_algorithm_time(signal_time:np.ndarray, fs, plot=False) -> tuple[np.
 
     # Calculate every 2nd sample of FFT
     # Perform the aliasing operation in time domain
+    mid_index = L // 2
     if L % 2 == 0:
-        signal_time2 = signal_time[:L//2] + signal_time[L//2:]
+        signal_time2 = signal_time[:mid_index] + signal_time[mid_index:]
     else:
-        signal_time2 = signal_time[:L//2] + signal_time[L//2+1:]
+        signal_time2 = signal_time[:mid_index] + signal_time[mid_index+1:]
     signal_freq2 = np.fft.fft(signal_time2)
     f2 = np.linspace(0, fs, L//2, endpoint=False)
 
@@ -178,7 +189,7 @@ def goertzel_algorithm_freq(signal_freq:np.ndarray, fs, target_bins=256) -> np.n
         #pad to correct target
         signal_freq = np.pad(signal_freq, pad_width=(0, target_bins-len(signal_freq)), mode='constant', constant_values=0.0)
     
-    return signal_freq
+    return np.abs(signal_freq)
 
 def apply_to_hrtf_points(hrtf:torch.Tensor, func:callable, *args, **kwargs):
     '''Takes in HRTF of shape [5, 16, 16, 256] [PANELS, X, Y, CHANNELS] and applys a function to each point in the frequency domain'''
@@ -191,12 +202,17 @@ def apply_to_hrtf_points(hrtf:torch.Tensor, func:callable, *args, **kwargs):
             for panels in range(PANELS):
                 modified_signal = func(hrtf[panels][x][y], *args, **kwargs)
 
+                if torch.isnan(modified_hrtf).any():
+                    raise ValueError(f"NaNs found in before goertzel")
                 modified_signal = torch.from_numpy(
                     goertzel_algorithm_freq(modified_signal, fs=config.HRIR_SAMPLERATE)
+                    # frequency_bin_mapping_freq_domain(modified_signal, fs=config.HRIR_SAMPLERATE)
                 )
+                if torch.isnan(modified_signal).any():
+                    raise ValueError(f"NaNs found in after goertzel")
 
                 debug(modified_signal.shape)
-                modified_hrtf[panels][x][y] = np.abs(modified_signal)
+                modified_hrtf[panels][x][y] = modified_signal
 
     return modified_hrtf
 
@@ -257,20 +273,20 @@ def check_signal(data:np.ndarray, input_domain:str, *str):
     debug(str, "Frequency shape:", signal.freq.shape)
     debug(str, "Time shape:", signal.time.shape)
 
-from blind_rt60 import BlindRT60
 from scipy.io import wavfile
+import pyroomacoustics
 def calculate_RT60(filepath):
-    estimator = BlindRT60()
-
-    # load signal x and sampling frequency
+    # load time domain signal x and sampling frequency
     fs, x = wavfile.read(filepath)
+    x = x[:, 0].astype(np.float64)
+    print(x)
+    print(x.shape, fs)
+    # x = x[:len(x)//8]
 
-    # rt60_estimate = estimator(x, fs)
-    
-    #visualise results
-    fig = estimator.visualize(x, fs)
+    # returns the rt60 in milliseconds?
+    rt60val = pyroomacoustics.experimental.rt60.measure_rt60(x, fs=fs, decay_db=60, energy_thres=0.95, plot=True, rt60_tgt=None)
     plt.show()
-
+    print(rt60val)
 #  --testing--
 # modify_sofa()
 # Visualiser(MODIFIED_SOFA_PATH)

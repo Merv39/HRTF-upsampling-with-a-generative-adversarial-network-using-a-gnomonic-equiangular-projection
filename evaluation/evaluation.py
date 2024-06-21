@@ -1,4 +1,4 @@
-from model.util import spectral_distortion_metric
+from model.util import spectral_distortion_metric, rt60_metric
 from model.dataset import downsample_hrtf, modify_hrtf
 from preprocessing.utils import convert_to_sofa
 
@@ -45,6 +45,35 @@ def load_hrtfs(config, sr_dir, file_name, replace_nodes = False):
 
 def replace_nodes(config, sr_dir, file_name):
     return load_hrtfs(config, sr_dir, file_name, replace_nodes=True)
+
+def run_rt60_evaluation(config, sr_dir, file_ext=None):
+
+    file_ext = 'lsd_errors.pickle' if file_ext is None else file_ext
+
+    sr_data_paths = glob.glob('%s/%s_*' % (sr_dir, config.dataset))
+    sr_data_file_names = ['/' + os.path.basename(x) for x in sr_data_paths]
+
+    rt60_errors = []
+    
+    for file_name in sr_data_file_names:
+        target, generated = load_hrtfs(config, sr_dir, file_name, replace_nodes=not KEEP_NODES)
+
+        # if torch.equal(generated, target):
+        #     print("ERROR, TARGET AND GENERATED HRTF ARE THE SAME")
+        # else:
+        #     print("Generated Shape:", generated.shape)
+        #     print("Target Shape:", target.shape)
+        
+        # Calculate and print LSD Error
+        # for each point, calculate the RT60
+        error = rt60_metric(target)
+        subject_id = ''.join(re.findall(r'\d+', file_name))
+        rt60_errors.append([subject_id,  float(error.detach())])
+        print('RT60 of subject %s: %0.4f' % (subject_id, float(error.detach())))
+
+    print('Mean RT60: %0.3f' % np.mean([error[1] for error in rt60_errors]))
+    with open(f'{config.path}/{file_ext}', "wb") as file:
+        pickle.dump(rt60_errors, file)
 
 def run_lsd_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
     '''sr_dir = directory of the superresolution HRTFs
