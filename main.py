@@ -145,7 +145,8 @@ def main(config, mode):
         test(config, test_prefetcher)
 
         run_lsd_evaluation(config, config.valid_path)
-        run_localisation_evaluation(config, config.valid_path)
+        run_rt60_evaluation(config, config.valid_path)
+        # run_localisation_evaluation(config, config.valid_path)
 
     elif mode == 'barycentric_baseline':
         barycentric_data_folder = f'/barycentric_interpolated_data_{config.upscale_factor}'
@@ -182,8 +183,10 @@ def main(config, mode):
         config.path = config.reverb_hrtf_dir
 
         file_ext = f'lsd_errors_reverb_interpolated_data_{config.upscale_factor}.pickle'
-        run_rt60_evaluation(config, reverb_output_path, file_ext)
         run_lsd_evaluation(config, reverb_output_path, file_ext)
+
+        file_ext = f'rt60_errors_reverb_interpolated_data_{config.upscale_factor}.pickle'
+        run_rt60_evaluation(config, reverb_output_path, file_ext)
 
     elif mode == 'temporal_window_baseline':
         #TODO: implement a baseline where the time of the impulse is truncated to a certain window before audio reflections occur
@@ -205,6 +208,9 @@ def main(config, mode):
 
         file_ext = f'lsd_errors_temporal_window_interpolated_data_{config.upscale_factor}.pickle'
         run_lsd_evaluation(config, temporal_window_output_path, file_ext)
+
+        file_ext = f'rt60_errors_temporal_window_interpolated_data_{config.upscale_factor}.pickle'
+        run_rt60_evaluation(config, temporal_window_output_path, file_ext)
 
         file_ext = f'loc_errors_temporal_window_interpolated_data_{config.upscale_factor}.pickle'
         run_localisation_evaluation(config, temporal_window_output_path, file_ext)

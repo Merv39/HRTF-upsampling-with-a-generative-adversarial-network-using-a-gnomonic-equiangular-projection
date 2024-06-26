@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset
 
-from audioprocessing.audio_processing import reverberate_hrtf
+from model.dataset import modify_hrtf
 import config
 
 def modify_hrtf(*args):
@@ -76,8 +76,7 @@ class TrainValidHRTFDataset(Dataset):
 
         # downsample hrtf
         # lr_hrtf = downsample_hrtf(hr_hrtf, self.hrtf_size, self.upscale_factor)
-        # TODO:LOAD REVERBERATED HRTF FILES HERE
-        lr_hrtf = reverberate_hrtf(hr_hrtf)
+        lr_hrtf = modify_hrtf(hr_hrtf)
         
         return {"lr": lr_hrtf, "hr": hr_hrtf, "filename": self.hrtf_file_names[batch_index]}
 

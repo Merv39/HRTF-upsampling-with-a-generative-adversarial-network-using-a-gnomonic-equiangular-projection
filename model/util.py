@@ -124,39 +124,10 @@ def rt60_metric(target, reduction='mean'):
         raise RuntimeError("Please specify a valid method for reduction (either 'mean' or 'sum').")
     return output_loss
 
-DEBUG_NAN = True
 def spectral_distortion_inner(input_spectrum, target_spectrum):
-
-    epsilon = 1e-10  # Small value to prevent division by zero and log(0)
-
-    # Prevent division by zero
-    denominator = input_spectrum.clamp(min=epsilon)
-
-    # Compute the ratio
-    ratio = target_spectrum / denominator
-
-    # Check for NaNs after division
-    if torch.isnan(ratio).any() and DEBUG_NAN:
-        raise ValueError("NaNs found in ratio after division")
-
-    # Prevent taking the logarithm of zero or negative values
-    ratio = ratio.clamp(min=epsilon)
-
-    # Compute the log ratio
-    log_ratio = 20 * torch.log10(ratio)
-
-    # Check for NaNs in the log ratio
-    if torch.isnan(log_ratio).any() and DEBUG_NAN:
-        raise ValueError("NaNs found in log_ratio")
-
-    # Compute the mean squared value
-    distortion_metric = torch.mean(log_ratio ** 2)
-
-    # Check for NaNs in the final distortion metric
-    if torch.isnan(distortion_metric).any() and DEBUG_NAN:
-        raise ValueError("NaNs found in distortion_metric")
-
-    return distortion_metric
+    numerator = target_spectrum
+    denominator = input_spectrum
+    return torch.mean((20 * torch.log10(numerator / denominator)) ** 2)
 
 
 def spectral_distortion_metric(generated, target, reduction='mean'):

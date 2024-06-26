@@ -108,6 +108,11 @@ class Discriminator(nn.Module):
 
         return out
 
+def check_for_nans(tensor, name):
+    return
+    if torch.isnan(tensor).any():
+        print(f"NaNs found in {name}")
+        raise ValueError(f"NaNs found in {name}")
 
 class Generator(nn.Module):
     def __init__(self, upscale_factor: int, nbins: int) -> None:
@@ -137,10 +142,11 @@ class Generator(nn.Module):
         )
 
         # Upscale block
-        upsampling = []
-        for _ in range(self.num_upsampling_blocks):
-            upsampling.append(UpsampleBlock(self.ngf))
-        self.upsampling = nn.Sequential(*upsampling)
+        if self.num_upsampling_blocks > 0:
+            upsampling = []
+            for _ in range(self.num_upsampling_blocks):
+                upsampling.append(UpsampleBlock(self.ngf))
+            self.upsampling = nn.Sequential(*upsampling)
 
         # Output layer.
         self.conv_block3 = nn.Sequential(
@@ -162,11 +168,11 @@ class Generator(nn.Module):
         out = self.trunk(out1)
         out2 = self.conv_block2(out)
         out = torch.add(out1, out2)
-        if self.num_upsampling_blocks != 0:
+        if self.num_upsampling_blocks > 0:
             out = self.upsampling(out)
         out = self.conv_block3(out)
         out = self.classifier(out)
-
+        
         return out
 
     def _initialize_weights(self) -> None:

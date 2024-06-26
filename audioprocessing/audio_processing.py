@@ -5,6 +5,9 @@ import numpy as np
 import pickle
 import torch
 import matplotlib.pyplot as plt
+import librosa
+from scipy.signal import hilbert
+import scipy
 
 # so that it can import as if from project root directory
 import sys
@@ -25,6 +28,11 @@ VERBOSE = False
 def debug(*str):
     if VERBOSE:
         print(*str)
+
+def wetdry_tensor(wet_signal: torch.Tensor, dry_signal: torch.Tensor, ratio: float) -> torch.Tensor:
+    # Mix the wet and dry signals
+    mixed_signal = ((1 - ratio) * dry_signal) + (ratio * wet_signal)
+    return mixed_signal
 
 def wetdry(wet_signal: pf.Signal, dry_signal: pf.Signal, ratio: float) -> pf.Signal:
     # Convert signals to numpy array
@@ -147,8 +155,19 @@ def frequency_bin_mapping_freq_domain(freq_signal:np.ndarray, fs, target_bins=25
     power_of_two_freqs = np.pad(power_of_two_freqs, (0, target_bins-len(power_of_two_freqs)), mode='constant')
     return power_of_two_freqs
 
+def minimum_phase_ifft(hrtf:np.ndarray)->np.ndarray:
+    '''takes in mono hrtf point, and returns mono hrir point'''
+    hrtf[hrtf == 0.0] = 1.0e-08
+    phase = np.imag(-hilbert(np.log(np.abs(hrtf))))
+
+    # hrir = scipy.fft.irfft(np.concatenate((np.array([0]), np.abs(hrtf))) * np.exp(1j * phase))
+    hrir = scipy.fft.irfft((np.abs(hrtf) * np.exp(1j * phase)))
+
+    return hrir
+
 # modified from https://dsp.stackexchange.com/a/40821
-def goertzel_algorithm_time(signal_time:np.ndarray, fs, plot=False) -> tuple[np.ndarray, np.ndarray]:
+# if the target number of bins is more than half, don't half
+def goertzel_algorithm_time(signal_time:np.ndarray, fs, target_bins=256, plot=False) -> tuple[np.ndarray, np.ndarray]:
     '''takes signal in time domain returns the shortened signal in frequency and time domain
     '''
     L = len(signal_time) #length in the time domain
@@ -160,7 +179,12 @@ def goertzel_algorithm_time(signal_time:np.ndarray, fs, plot=False) -> tuple[np.
     # Calculate every 2nd sample of FFT
     # Perform the aliasing operation in time domain
     mid_index = L // 2
-    if L % 2 == 0:
+    if mid_index < target_bins:
+        first_split = signal_time[:target_bins]
+        second_split = signal_time[target_bins:]
+        second_split = np.pad(second_split, pad_width=(0, target_bins-len(second_split)), mode='constant', constant_values=0.0)
+        signal_time2 = first_split + second_split
+    elif L % 2 == 0:
         signal_time2 = signal_time[:mid_index] + signal_time[mid_index:]
     else:
         signal_time2 = signal_time[:mid_index] + signal_time[mid_index+1:]
@@ -175,24 +199,45 @@ def goertzel_algorithm_time(signal_time:np.ndarray, fs, plot=False) -> tuple[np.
         plt.show()
     return signal_time2, signal_freq2
 
-def goertzel_algorithm_freq(signal_freq:np.ndarray, fs, target_bins=256) -> np.ndarray:
+def goertzel_algorithm_freq(signal_freq:np.ndarray, fs, target_bins=256, phase=False) -> np.ndarray:
     '''Input: frequency domain signal
     Returns: shortened frequency domain signal'''
     #inverse FFT to time domain
-    signal_time = np.fft.ifft(signal_freq)
+    if phase:
+        signal_time = np.fft.ifft(signal_freq)
+    else:
+        signal_time = minimum_phase_ifft(signal_freq)
+        # signal_time = np.fft.irfft(signal_freq)
 
     #while frequency bins is not the desired number, keep repeating
     while len(signal_freq) > target_bins:
-        signal_time, signal_freq = goertzel_algorithm_time(signal_time, fs)
-    
-    if len(signal_freq) < target_bins:
-        #pad to correct target
-        signal_freq = np.pad(signal_freq, pad_width=(0, target_bins-len(signal_freq)), mode='constant', constant_values=0.0)
+        signal_time, signal_freq = goertzel_algorithm_time(signal_time, fs, target_bins)
     
     return np.abs(signal_freq)
 
-def apply_to_hrtf_points(hrtf:torch.Tensor, func:callable, *args, **kwargs):
-    '''Takes in HRTF of shape [5, 16, 16, 256] [PANELS, X, Y, CHANNELS] and applys a function to each point in the frequency domain'''
+def goertzel_algorithm_time_to_freq(signal_time:np.ndarray, fs, target_bins=256) -> np.ndarray:
+    '''Input: time domain signal
+    Returns: shortened frequency domain signal'''
+    #inverse FFT to time domain
+    signal_freq = np.fft.fft(signal_time)
+
+    #while frequency bins is not the desired number, keep repeating
+    while len(signal_freq) > target_bins:
+        signal_time, signal_freq = goertzel_algorithm_time(signal_time, fs, target_bins)
+    
+    return np.abs(signal_freq)
+
+def normalise_signal(hrtf: torch.Tensor)-> torch.Tensor:
+    '''Prevents clipping'''
+    # find the highest value
+    highest_val = torch.max(torch.abs(hrtf))
+    debug(highest_val)
+    # scale down the entire tensor by that amount
+    normalised_hrtf = hrtf / highest_val
+    return normalised_hrtf
+
+def apply_to_hrtf_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> torch.Tensor:
+    '''Takes in HRTF (no phase) of shape [5, 16, 16, 256] [PANELS, X, Y, CHANNELS] and applys a function to each point in the frequency domain'''
     dims = hrtf.shape
     PANELS = dims[0]; X = dims[1]; Y = dims[2]; CHANNELS = dims[3]
 
@@ -200,24 +245,30 @@ def apply_to_hrtf_points(hrtf:torch.Tensor, func:callable, *args, **kwargs):
     for x in range(X):
         for y in range(Y):
             for panels in range(PANELS):
-                modified_signal = func(hrtf[panels][x][y], *args, **kwargs)
-
-                if torch.isnan(modified_hrtf).any():
-                    raise ValueError(f"NaNs found in before goertzel")
-                modified_signal = torch.from_numpy(
-                    goertzel_algorithm_freq(modified_signal, fs=config.HRIR_SAMPLERATE)
-                    # frequency_bin_mapping_freq_domain(modified_signal, fs=config.HRIR_SAMPLERATE)
+                hrtf_point = hrtf[panels][x][y]
+                hrtf_point_left = hrtf_point[:config.NBINS_HRTF].numpy()
+                hrtf_point_right = hrtf_point[config.NBINS_HRTF:].numpy()
+                modified_signal_left = func(hrtf_point_left, *args, **kwargs)
+                modified_signal_right = func(hrtf_point_right, *args, **kwargs)
+                
+                modified_signal_left = torch.from_numpy(
+                    #modified_signal[:256]
+                    goertzel_algorithm_freq(modified_signal_left, fs=config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF)
+                    #frequency_bin_mapping_freq_domain(modified_signal, fs=config.HRIR_SAMPLERATE)
                 )
-                if torch.isnan(modified_signal).any():
-                    raise ValueError(f"NaNs found in after goertzel")
+                modified_signal_right = torch.from_numpy(
+                    #modified_signal[:256]
+                    goertzel_algorithm_freq(modified_signal_right, fs=config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF)
+                    #frequency_bin_mapping_freq_domain(modified_signal, fs=config.HRIR_SAMPLERATE)
+                )
 
-                debug(modified_signal.shape)
-                modified_hrtf[panels][x][y] = modified_signal
-
+                modified_signal = torch.concatenate([modified_signal_left, modified_signal_right])
+                # modified_hrtf[panels][x][y] = np.abs(modified_signal)
+                modified_hrtf[panels][x][y] = normalise_signal(np.abs(modified_signal))
     return modified_hrtf
 
-def apply_to_hrir_points(hrtf:torch.Tensor, func:callable, *args, **kwargs):
-    '''Takes in HRTF of shape [5, 16, 16, 256] [PANELS, X, Y, CHANNELS] and applys a function to each point in the time domain'''
+def apply_to_hrir_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> torch.Tensor:
+    '''Takes in HRTF (no phase) of shape [5, 16, 16, 256] [PANELS, X, Y, CHANNELS] and applys a function to each point in the time domain'''
     dims = hrtf.shape
     PANELS = dims[0]; X = dims[1]; Y = dims[2]; CHANNELS = dims[3]
 
@@ -226,16 +277,26 @@ def apply_to_hrir_points(hrtf:torch.Tensor, func:callable, *args, **kwargs):
     for x in range(X):
         for y in range(Y):
             for panels in range(PANELS):
-                hrir_point = np.fft.ifft(hrtf[panels][x][y])
-                hrir_point = func(hrir_point, *args)
-                modified_signal = np.fft.fft(hrir_point)
+                hrtf_point = hrtf[panels][x][y]
+                hrtf_point_left = hrtf_point[:config.NBINS_HRTF].numpy()
+                hrtf_point_right = hrtf_point[config.NBINS_HRTF:].numpy()
 
-                modified_signal = torch.from_numpy(
-                    goertzel_algorithm_freq(modified_signal, fs=config.HRIR_SAMPLERATE)
+                hrir_point_left = minimum_phase_ifft(hrtf_point_left) #inverse fft with magnitude, no phase
+                hrir_point_right = minimum_phase_ifft(hrtf_point_right) #inverse fft with magnitude, no phase
+                hrir_point_left = func(hrir_point_left, *args)
+                hrir_point_right = func(hrir_point_right, *args)
+
+                modified_signal_left = torch.from_numpy(
+                    goertzel_algorithm_time_to_freq(hrir_point_left, fs=config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF)
+                )
+                
+                modified_signal_right = torch.from_numpy(
+                    goertzel_algorithm_time_to_freq(hrir_point_right, fs=config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF)
                 )
 
-                debug(modified_signal.shape)
-                modified_hrtf[panels][x][y] = np.abs(modified_signal)
+                modified_signal = torch.concatenate([modified_signal_left, modified_signal_right])
+                # modified_hrtf[panels][x][y] = np.abs(modified_signal)
+                modified_hrtf[panels][x][y] = normalise_signal(np.abs(modified_signal))
 
     return modified_hrtf
 
@@ -246,22 +307,17 @@ def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5, truncate=True):
     # Read and Convert Impulse Response to the Frequency Domain
     current_dir = os.path.dirname(os.path.abspath(__file__))
     filepath = os.path.join(current_dir, 'IMP-classroom.wav')
-    reverb_signal = pf.io.read_audio(filepath)
 
-    # Convert pyfar signal to pytorch tensor
-    #TODO: Apply FFT with the power spectrum for each channel to represent a power of 2
-    reverb_signal.fft_norm = 'power'
-
-    # plot_fft(reverb_signal, "Reverb Impulse")
-    debug(reverb_signal.freq.shape)
-    debug(reverb_signal.freq[0][500]) #complex number
-    debug(abs(reverb_signal.freq[0][500]))
-    power_reverb_signal = torch.from_numpy(frequency_bin_mapping(reverb_signal))
+    # Convert the reverb to the correct sample rate and number of frequency bins for convolution
+    reverb_audio = librosa.load(filepath, sr=config.HRIR_SAMPLERATE, mono=True)[0]
+    reverb_audio_freq = np.fft.fft(reverb_audio)
+    reverb_signal_freq = goertzel_algorithm_freq(reverb_audio_freq, config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF, phase=True)
 
     lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
-    lr_hrtf = apply_to_hrtf_points(lr_hrtf, np.convolve, power_reverb_signal, mode='full')
+    reverb_hrtf = apply_to_hrtf_points(lr_hrtf, np.convolve, reverb_signal_freq, mode='full')
+    lr_hrtf = wetdry_tensor(reverb_hrtf, lr_hrtf, wetdry)
     lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
-    debug("Tensors same:", torch.equal(hr_hrtf, lr_hrtf))
+    # print("Reverb Tensors same:", torch.equal(hr_hrtf, lr_hrtf))
     return lr_hrtf
 
 def check_signal(data:np.ndarray, input_domain:str, *str):

@@ -47,8 +47,9 @@ def replace_nodes(config, sr_dir, file_name):
     return load_hrtfs(config, sr_dir, file_name, replace_nodes=True)
 
 def run_rt60_evaluation(config, sr_dir, file_ext=None):
+    return
 
-    file_ext = 'lsd_errors.pickle' if file_ext is None else file_ext
+    file_ext = 'rt60_errors.pickle' if file_ext is None else file_ext
 
     sr_data_paths = glob.glob('%s/%s_*' % (sr_dir, config.dataset))
     sr_data_file_names = ['/' + os.path.basename(x) for x in sr_data_paths]
