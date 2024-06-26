@@ -124,6 +124,7 @@ def rt60_metric(target, reduction='mean'):
         raise RuntimeError("Please specify a valid method for reduction (either 'mean' or 'sum').")
     return output_loss
 
+DEBUG_NAN = True
 def spectral_distortion_inner(input_spectrum, target_spectrum):
     numerator = target_spectrum
     denominator = input_spectrum
