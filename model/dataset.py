@@ -5,6 +5,7 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from model.dataset import modify_hrtf
+from audioprocessing.audio_processing import reverberate_hrtf
 import config
 
 def modify_hrtf(*args):
