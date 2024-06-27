@@ -230,14 +230,23 @@ def goertzel_algorithm_time_to_freq(signal_time:np.ndarray, fs, target_bins=256)
     
     return np.abs(signal_freq)
 
-def normalise_signal(hrtf: torch.Tensor)-> torch.Tensor:
+def normalise_tensor(tensor: torch.Tensor)-> torch.Tensor:
     '''Prevents clipping'''
     # find the highest value
-    highest_val = torch.max(torch.abs(hrtf))
+    highest_val = torch.max(torch.abs(tensor))
     debug(highest_val)
     # scale down the entire tensor by that amount
-    normalised_hrtf = hrtf / highest_val
-    return normalised_hrtf
+    normalised_tensor = tensor / highest_val
+    return normalised_tensor
+
+def normalise_ndarray(array: np.ndarray)-> np.ndarray:
+    '''Prevents clipping'''
+    # find the highest value
+    highest_val = np.max(np.abs(array))
+    debug(highest_val)
+    # scale down the entire array by that amount
+    normalised_array = array / highest_val
+    return normalised_array
 
 def apply_to_hrtf_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> torch.Tensor:
     '''Takes in HRTF (no phase) of shape [5, 16, 16, 256] [PANELS, X, Y, CHANNELS] and applys a function to each point in the frequency domain'''
@@ -254,21 +263,30 @@ def apply_to_hrtf_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> to
                 hrtf_point_right = hrtf_point[config.NBINS_HRTF:].numpy()
                 modified_signal_left = func(hrtf_point_left, *args, **kwargs)
                 modified_signal_right = func(hrtf_point_right, *args, **kwargs)
-                
+
                 modified_signal_left = torch.from_numpy(
-                    #modified_signal[:256]
+                    #modified_signal_left[:128]
                     goertzel_algorithm_freq(modified_signal_left, fs=config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF)
                     #frequency_bin_mapping_freq_domain(modified_signal, fs=config.HRIR_SAMPLERATE)
                 )
                 modified_signal_right = torch.from_numpy(
-                    #modified_signal[:256]
+                    #modified_signal_right[:128]
                     goertzel_algorithm_freq(modified_signal_right, fs=config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF)
                     #frequency_bin_mapping_freq_domain(modified_signal, fs=config.HRIR_SAMPLERATE)
                 )
 
                 if test_count != None:
-                    scipy.io.wavfile.write(concat("dry", "x", x, "y", y, "panel", panels, ".wav"), 48000, minimum_phase_ifft(hrtf_point_left))
-                    scipy.io.wavfile.write(concat("wet", "x", x, "y", y, "panel", panels, ".wav"), 48000, minimum_phase_ifft(modified_signal_left.numpy()))
+                    dry_data = np.int32(normalise_ndarray(minimum_phase_ifft(hrtf_point_left)) * 2147483647)
+                    wet_data = np.int32(normalise_ndarray(minimum_phase_ifft(modified_signal_left.numpy())) * 2147483647)
+
+                    scipy.io.wavfile.write(concat("dry", "x", x, "y", y, "panel", panels, ".wav"), 
+                                           48000, 
+                                           dry_data
+                    )
+                    scipy.io.wavfile.write(concat("wet", "x", x, "y", y, "panel", panels, ".wav"), 
+                                           48000, 
+                                           wet_data
+                    )
                     test_count -= 1
                     if test_count == 0:
                         exit()
