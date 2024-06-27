@@ -10,6 +10,7 @@ import pyfar as pf
 
 from audioprocessing.audio_processing import reverberate_hrtf, apply_to_hrir_points
 from preprocessing.utils import hrtf_to_hrir, trim_hrir, calc_hrtf
+from model.dataset import modify_hrtf
 
 from model.util import spectral_distortion_metric
 

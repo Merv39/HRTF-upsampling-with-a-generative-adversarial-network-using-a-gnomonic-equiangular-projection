@@ -29,6 +29,9 @@ def debug(*str):
     if VERBOSE:
         print(*str)
 
+def concat(*args):
+    return '%s' * len(args) % (args)
+
 def wetdry_tensor(wet_signal: torch.Tensor, dry_signal: torch.Tensor, ratio: float) -> torch.Tensor:
     # Mix the wet and dry signals
     mixed_signal = ((1 - ratio) * dry_signal) + (ratio * wet_signal)
@@ -238,6 +241,7 @@ def normalise_signal(hrtf: torch.Tensor)-> torch.Tensor:
 
 def apply_to_hrtf_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> torch.Tensor:
     '''Takes in HRTF (no phase) of shape [5, 16, 16, 256] [PANELS, X, Y, CHANNELS] and applys a function to each point in the frequency domain'''
+    test_count = None
     dims = hrtf.shape
     PANELS = dims[0]; X = dims[1]; Y = dims[2]; CHANNELS = dims[3]
 
@@ -261,6 +265,13 @@ def apply_to_hrtf_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> to
                     goertzel_algorithm_freq(modified_signal_right, fs=config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF)
                     #frequency_bin_mapping_freq_domain(modified_signal, fs=config.HRIR_SAMPLERATE)
                 )
+
+                if test_count != None:
+                    scipy.io.wavfile.write(concat("dry", "x", x, "y", y, "panel", panels, ".wav"), 48000, minimum_phase_ifft(hrtf_point_left))
+                    scipy.io.wavfile.write(concat("wet", "x", x, "y", y, "panel", panels, ".wav"), 48000, minimum_phase_ifft(modified_signal_left.numpy()))
+                    test_count -= 1
+                    if test_count == 0:
+                        exit()
 
                 modified_signal = torch.concatenate([modified_signal_left, modified_signal_right])
                 # modified_hrtf[panels][x][y] = np.abs(modified_signal)

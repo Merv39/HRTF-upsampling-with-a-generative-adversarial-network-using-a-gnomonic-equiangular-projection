@@ -29,6 +29,20 @@ PI_4 = np.pi / 4
 torch.manual_seed(0)
 np.random.seed(0)
 
+def modify_config(constant:str, new_value):
+    config_file_path = 'config.py'
+    
+    # Read the original config.py
+    with open(config_file_path, 'r') as file:
+        lines = file.readlines()
+    
+    # Modify the line that contains MY_CONSTANT
+    with open(config_file_path, 'w') as file:
+        for line in lines:
+            if line.startswith(constant):
+                file.write(f'{constant} = "{new_value}"\n')
+            else:
+                file.write(line)
 
 def main(config, mode):
     # Initialise Config object
@@ -265,8 +279,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("mode")
     parser.add_argument("-t", "--tag")
+    parser.add_argument("--type")
     parser.add_argument("-c", "--hpc")
     args = parser.parse_args()
+
+    if args.type:
+        print(args.type)
+        modify_config(constant='TYPE', new_value=args.type)
+        import config
 
     if args.hpc == "True":
         hpc = True
@@ -281,4 +301,5 @@ if __name__ == '__main__':
         tag = None
 
     config = Config(tag, using_hpc=hpc)
+
     main(config, args.mode)
