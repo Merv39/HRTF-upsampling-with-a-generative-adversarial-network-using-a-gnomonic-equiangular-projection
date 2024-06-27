@@ -275,7 +275,7 @@ def apply_to_hrtf_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> to
 
                 modified_signal = torch.concatenate([modified_signal_left, modified_signal_right])
                 # modified_hrtf[panels][x][y] = np.abs(modified_signal)
-                modified_hrtf[panels][x][y] = normalise_signal(np.abs(modified_signal))
+                modified_hrtf[panels][x][y] = np.abs(modified_signal)
     return modified_hrtf
 
 def apply_to_hrir_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> torch.Tensor:
@@ -307,11 +307,11 @@ def apply_to_hrir_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> to
 
                 modified_signal = torch.concatenate([modified_signal_left, modified_signal_right])
                 # modified_hrtf[panels][x][y] = np.abs(modified_signal)
-                modified_hrtf[panels][x][y] = normalise_signal(np.abs(modified_signal))
+                modified_hrtf[panels][x][y] = np.abs(modified_signal)
 
     return modified_hrtf
 
-def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5, truncate=True):
+def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=1, truncate=True):
     """ Apply reverb to hrtf. Expects hrtf of shape [256, 5, 16, 16] (CHANNELS, PANELS, X, Y)
     Returns hrtf of shape [256, 5, 16, 16]
     """
@@ -325,7 +325,8 @@ def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5, truncate=True):
     reverb_signal_freq = goertzel_algorithm_freq(reverb_audio_freq, config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF, phase=True)
 
     lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
-    reverb_hrtf = apply_to_hrtf_points(lr_hrtf, np.convolve, reverb_signal_freq, mode='full')
+    multiply = lambda a,b : a * b
+    reverb_hrtf = apply_to_hrtf_points(lr_hrtf, multiply, reverb_signal_freq)
     lr_hrtf = wetdry_tensor(reverb_hrtf, lr_hrtf, wetdry)
     lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
     # print("Reverb Tensors same:", torch.equal(hr_hrtf, lr_hrtf))
