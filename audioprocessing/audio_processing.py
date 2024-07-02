@@ -18,12 +18,15 @@ sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
 import config
 
-# from audioprocessing.visualiser import Visualiser # If running from main.py
-# from visualiser import Visualiser # If running this script
-
 ORIGINAL_SOFA_PATH = r"C:\Users\March\Desktop\Msc AI\MSc Project\Sonicom_1.sofa"
 MODIFIED_SOFA_PATH = os.path.join('audioprocessing', 'modified_sofa_file.sofa')
 VERBOSE = False
+
+def magnitude(x:complex):
+    if np.iscomplexobj(x):
+        return np.abs(x)
+    else:
+        return x
 
 def debug(*str):
     if VERBOSE:
@@ -126,7 +129,7 @@ def frequency_bin_mapping(signal:pf.Signal, target_bins=256):
     debug(signal.shape) #(sampling_rate, )
 
     # Perform FFT
-    fft_result = np.fft.fft(signal)
+    fft_result = magnitude_fft(signal)
 
     return frequency_bin_mapping_freq_domain(fft_result, fs, target_bins=target_bins)
 
@@ -158,14 +161,21 @@ def frequency_bin_mapping_freq_domain(freq_signal:np.ndarray, fs, target_bins=25
     power_of_two_freqs = np.pad(power_of_two_freqs, (0, target_bins-len(power_of_two_freqs)), mode='constant')
     return power_of_two_freqs
 
+def magnitude_fft(signal_time:np.ndarray)->np.ndarray:
+    signal_freq = magnitude(np.fft.fft(signal_time))
+    #Second half of FFT has no new information (simply the mirror image / complex conjugate)
+    signal_freq = signal_freq[:len(signal_freq)//2]
+    return signal_freq
+
+
 def minimum_phase_ifft(hrtf:np.ndarray)->np.ndarray:
     '''takes in mono hrtf point, and returns mono hrir point'''
+    hrtf = np.pad(hrtf, (0, 1), 'constant')
+
     hrtf[hrtf == 0.0] = 1.0e-08
     phase = np.imag(-hilbert(np.log(np.abs(hrtf))))
 
-    # hrir = scipy.fft.irfft(np.concatenate((np.array([0]), np.abs(hrtf))) * np.exp(1j * phase))
     hrir = scipy.fft.irfft((np.abs(hrtf) * np.exp(1j * phase)))
-
     return hrir
 
 # modified from https://dsp.stackexchange.com/a/40821
@@ -174,15 +184,16 @@ def goertzel_algorithm_time(signal_time:np.ndarray, fs, target_bins=256, plot=Fa
     '''takes signal in time domain returns the shortened signal in frequency and time domain
     '''
     L = len(signal_time) #length in the time domain
+    target_bins = target_bins*2 #target bins in halved frequency domain
 
     # Calculate full FFT for reference
-    signal_freq = np.fft.fft(signal_time)
+    signal_freq = magnitude_fft(signal_time)
     f1 = np.linspace(0, fs, L, endpoint=False)
 
     # Calculate every 2nd sample of FFT
     # Perform the aliasing operation in time domain
     mid_index = L // 2
-    if mid_index < target_bins:
+    if  mid_index < target_bins:
         first_split = signal_time[:target_bins]
         second_split = signal_time[target_bins:]
         second_split = np.pad(second_split, pad_width=(0, target_bins-len(second_split)), mode='constant', constant_values=0.0)
@@ -191,7 +202,7 @@ def goertzel_algorithm_time(signal_time:np.ndarray, fs, target_bins=256, plot=Fa
         signal_time2 = signal_time[:mid_index] + signal_time[mid_index:]
     else:
         signal_time2 = signal_time[:mid_index] + signal_time[mid_index+1:]
-    signal_freq2 = np.fft.fft(signal_time2)
+    signal_freq2 = magnitude_fft(signal_time2)
     f2 = np.linspace(0, fs, L//2, endpoint=False)
 
     if plot:
@@ -216,19 +227,31 @@ def goertzel_algorithm_freq(signal_freq:np.ndarray, fs, target_bins=256, phase=F
     while len(signal_freq) > target_bins:
         signal_time, signal_freq = goertzel_algorithm_time(signal_time, fs, target_bins)
     
-    return np.abs(signal_freq)
+    return signal_freq
 
-def goertzel_algorithm_time_to_freq(signal_time:np.ndarray, fs, target_bins=256) -> np.ndarray:
+def goertzel_algorithm_time_to_time(signal_time:np.ndarray, fs, target_bins=256) -> np.ndarray:
     '''Input: time domain signal
-    Returns: shortened frequency domain signal'''
+    Returns: shortened time domain signal'''
     #inverse FFT to time domain
-    signal_freq = np.fft.fft(signal_time)
+    signal_freq = magnitude_fft(signal_time)
 
     #while frequency bins is not the desired number, keep repeating
     while len(signal_freq) > target_bins:
         signal_time, signal_freq = goertzel_algorithm_time(signal_time, fs, target_bins)
     
-    return np.abs(signal_freq)
+    return signal_time
+
+def goertzel_algorithm_time_to_freq(signal_time:np.ndarray, fs, target_bins=256) -> np.ndarray:
+    '''Input: time domain signal
+    Returns: shortened frequency domain signal'''
+    #inverse FFT to time domain
+    signal_freq = magnitude_fft(signal_time)
+
+    #while frequency bins is not the desired number, keep repeating
+    while len(signal_freq) > target_bins:
+        signal_time, signal_freq = goertzel_algorithm_time(signal_time, fs, target_bins)
+    
+    return signal_freq
 
 def normalise_tensor(tensor: torch.Tensor)-> torch.Tensor:
     '''Prevents clipping'''
@@ -312,6 +335,7 @@ def apply_to_hrir_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> to
 
                 hrir_point_left = minimum_phase_ifft(hrtf_point_left) #inverse fft with magnitude, no phase
                 hrir_point_right = minimum_phase_ifft(hrtf_point_right) #inverse fft with magnitude, no phase
+                
                 hrir_point_left = func(hrir_point_left, *args)
                 hrir_point_right = func(hrir_point_right, *args)
 
@@ -324,8 +348,7 @@ def apply_to_hrir_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> to
                 )
 
                 modified_signal = torch.concatenate([modified_signal_left, modified_signal_right])
-                # modified_hrtf[panels][x][y] = np.abs(modified_signal)
-                modified_hrtf[panels][x][y] = np.abs(modified_signal)
+                modified_hrtf[panels][x][y] = modified_signal
 
     return modified_hrtf
 
@@ -339,12 +362,20 @@ def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=1, truncate=True):
 
     # Convert the reverb to the correct sample rate and number of frequency bins for convolution
     reverb_audio = librosa.load(filepath, sr=config.HRIR_SAMPLERATE, mono=True)[0]
-    reverb_audio_freq = np.fft.fft(reverb_audio)
+    reverb_audio_freq = magnitude_fft(reverb_audio)
     reverb_signal_freq = goertzel_algorithm_freq(reverb_audio_freq, config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF, phase=True)
+    reverb_signal_freq = normalise_ndarray(reverb_signal_freq)
 
     lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
-    multiply = lambda a,b : a * b
-    reverb_hrtf = apply_to_hrtf_points(lr_hrtf, multiply, reverb_signal_freq)
+
+    # Convolution in the frequency domain
+    # multiply = lambda a,b : a * b
+    # reverb_hrtf = apply_to_hrtf_points(lr_hrtf, multiply, reverb_signal_freq)
+
+    # Convolution in the time domain
+    reverb_audio = goertzel_algorithm_time_to_time(reverb_audio, config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF)
+    reverb_hrtf = apply_to_hrir_points(lr_hrtf, np.convolve, reverb_audio)
+
     lr_hrtf = wetdry_tensor(reverb_hrtf, lr_hrtf, wetdry)
     lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
     # print("Reverb Tensors same:", torch.equal(hr_hrtf, lr_hrtf))
