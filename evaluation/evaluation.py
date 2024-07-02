@@ -17,10 +17,17 @@ import matlab.engine
 DISABLE_LOCALISATION_EVALUATION = True
 KEEP_NODES = True
 
-def load_hrtfs(config, sr_dir, file_name, replace_nodes = False):
+def load_hrtfs(config, sr_dir, file_name, replace_nodes = False, random_subject = False):
     '''Returns the target HRTF and the GAN HRTF'''
     with open(config.valid_hrtf_merge_dir + file_name, "rb") as f:
         hr_hrtf = pickle.load(f)
+
+    # pick a random file from the directory
+    if random_subject:
+        sr_data_paths = glob.glob('%s/%s_*' % (sr_dir, config.dataset))
+        sr_data_file_names = ['/' + os.path.basename(x) for x in sr_data_paths]
+        import random
+        file_name = random.choice(sr_data_file_names)
 
     with open(sr_dir + file_name, "rb") as f:
         sr_hrtf = pickle.load(f)

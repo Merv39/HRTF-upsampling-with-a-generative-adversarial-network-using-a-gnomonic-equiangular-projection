@@ -5,6 +5,7 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from audioprocessing.audio_processing import reverberate_hrtf
+from audioprocessing.audio_processing import apply_to_hrtf_points
 
 TYPE = None
 
@@ -24,8 +25,29 @@ def modify_hrtf(*args):
 
     if TYPE == "downsample":
         return downsample_hrtf(*args)
+    if TYPE == "filter":
+        return filter_hrtf(*args)
     else:
         return reverberate_hrtf(*args)
+    
+def filter_array(array:np.ndarray, cutoff=0, type="lowpass")->np.ndarray:
+    '''Takes in frequency domain array, and applys filter
+    
+    Cutoff the number of frequency bins'''
+    freq_mask = np.ones_like(array)
+    if type == "lowpass":
+        freq_mask[cutoff:] = 0
+    elif type == "highpass":
+        freq_mask[:cutoff] = 0
+    return array * freq_mask
+
+def filter_hrtf(hr_hrtf:torch.Tensor):
+    cutoff = 120 #frequency bins per side = 128
+    lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
+    lr_hrtf = apply_to_hrtf_points(lr_hrtf, filter_array, cutoff, "lowpass")
+    lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
+    # print("Reverb Tensors same:", torch.equal(hr_hrtf, lr_hrtf))
+    return lr_hrtf
 
 # based on https://github.com/Lornatang/SRGAN-PyTorch/blob/7292452634137d8f5d4478e44727ec1166a89125/dataset.py
 def downsample_hrtf(hr_hrtf, hrtf_size=None, upscale_factor=None):

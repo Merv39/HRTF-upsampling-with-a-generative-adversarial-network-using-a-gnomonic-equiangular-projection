@@ -22,6 +22,7 @@ from audioprocessing.audio_processing import modify_sofa
 from baselines.noise_gate import run_noisegate_baseline
 from baselines.temporal_window import run_temporal_window_baseline
 from baselines.reverb import run_reverb_baseline
+from baselines.passthrough import run_passthrough_baseline
 
 PI_4 = np.pi / 4
 
@@ -30,7 +31,8 @@ torch.manual_seed(0)
 np.random.seed(0)
 
 def modify_config(constant:str, new_value):
-    config_file_path = 'config.py'
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    config_file_path = os.path.join(current_dir, 'config.py')
     
     # Read the original config.py
     with open(config_file_path, 'r') as file:
@@ -178,6 +180,27 @@ def main(config, mode):
 
         file_ext = f'loc_errors_barycentric_interpolated_data_{config.upscale_factor}.pickle'
         run_localisation_evaluation(config, barycentric_output_path, file_ext)
+    
+    elif mode == 'passthrough_baseline':
+        projection_filename = f'{config.projection_dir}/{config.dataset}_projection_{config.hrtf_size}'
+        with open(projection_filename, "rb") as f:
+            (cube, sphere, _, _) = pickle.load(f)
+
+        passthrough_data_folder = f'/passthrough_interpolated_data_{config.upscale_factor}'
+        passthrough_output_path = config.passthrough_hrtf_dir + passthrough_data_folder
+        run_passthrough_baseline(config, passthrough_output_path)
+
+        if config.gen_sofa_flag:
+            convert_to_sofa(passthrough_output_path, config, cube, sphere)
+            print('Created passthrough baseline sofa files')
+
+        config.path = config.passthrough_hrtf_dir
+
+        file_ext = f'lsd_errors_passthrough_interpolated_data_{config.upscale_factor}.pickle'
+        run_lsd_evaluation(config, passthrough_output_path, file_ext)
+
+        file_ext = f'rt60_errors_passthrough_interpolated_data_{config.upscale_factor}.pickle'
+        run_rt60_evaluation(config, passthrough_output_path, file_ext)
 
     elif mode == 'reverb_baseline':
         # no change
