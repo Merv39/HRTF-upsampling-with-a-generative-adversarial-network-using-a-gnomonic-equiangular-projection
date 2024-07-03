@@ -304,11 +304,17 @@ if __name__ == '__main__':
     parser.add_argument("-t", "--tag")
     parser.add_argument("--type")
     parser.add_argument("-c", "--hpc")
+    parser.add_argument("--wetdry")
     args = parser.parse_args()
 
     if args.type:
         print(args.type)
         modify_config(constant='TYPE', new_value=args.type)
+        import config
+    
+    if args.wetdry:
+        print(args.wetdrt)
+        modify_config(constant='WETDRY_RATIO', new_value=args.wetdry)
         import config
 
     if args.hpc == "True":

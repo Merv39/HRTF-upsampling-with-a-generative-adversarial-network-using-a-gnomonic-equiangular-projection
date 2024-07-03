@@ -3,6 +3,7 @@ import pickle
 import torch
 import numpy as np
 from torch.utils.data import Dataset
+import config
 
 from audioprocessing.audio_processing import reverberate_hrtf
 from audioprocessing.audio_processing import apply_to_hrtf_points
@@ -36,13 +37,13 @@ def filter_array(array:np.ndarray, cutoff=0, type="lowpass")->np.ndarray:
     Cutoff the number of frequency bins'''
     freq_mask = np.ones_like(array)
     if type == "lowpass":
-        freq_mask[cutoff:] = 0
+        freq_mask[cutoff:] = config.EPSILON
     elif type == "highpass":
-        freq_mask[:cutoff] = 0
+        freq_mask[:cutoff] = config.EPSILON
     return array * freq_mask
 
 def filter_hrtf(hr_hrtf:torch.Tensor):
-    cutoff = 120 #frequency bins per side = 128
+    cutoff = 128 #frequency bins per side = 128
     lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
     lr_hrtf = apply_to_hrtf_points(lr_hrtf, filter_array, cutoff, "lowpass")
     lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)

@@ -176,7 +176,7 @@ def minimum_phase_ifft(hrtf:np.ndarray)->np.ndarray:
     '''takes in mono hrtf point, and returns mono hrir point'''
     hrtf = np.pad(hrtf, (0, 1), 'constant')
 
-    hrtf[hrtf == 0.0] = 1.0e-08
+    hrtf[hrtf == 0.0] = config.EPSILON
     phase = np.imag(-hilbert(np.log(np.abs(hrtf))))
 
     hrir = scipy.fft.irfft((np.abs(hrtf) * np.exp(1j * phase)))
@@ -325,7 +325,6 @@ def apply_to_hrtf_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> to
                         exit()
 
                 modified_signal = torch.concatenate([modified_signal_left, modified_signal_right])
-                # modified_hrtf[panels][x][y] = np.abs(modified_signal)
                 modified_hrtf[panels][x][y] = normalise_tensor(modified_signal, "rms", 0.3084)
     return modified_hrtf
 
@@ -358,8 +357,8 @@ def apply_to_hrir_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> to
                 )
 
                 modified_signal = torch.concatenate([modified_signal_left, modified_signal_right])
-                # modified_hrtf[panels][x][y] = modified_signal
-                modified_hrtf[panels][x][y] = normalise_tensor(modified_signal, "rms", 0.3084)
+                # Normalise adds LSD error to filter
+                #modified_hrtf[panels][x][y] = normalise_tensor(modified_signal, "rms", 0.3084)
 
     return modified_hrtf
 

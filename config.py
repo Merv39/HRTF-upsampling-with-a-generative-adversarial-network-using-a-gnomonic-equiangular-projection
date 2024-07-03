@@ -12,6 +12,7 @@ HRIR_SAMPLERATE = 48000.0
 
 TYPE = "filter"
 WETDRY_RATIO = 0.5
+EPSILON = 1.0e-8
 
 class Config:
     """Config class
