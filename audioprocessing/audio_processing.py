@@ -22,6 +22,10 @@ ORIGINAL_SOFA_PATH = r"C:\Users\March\Desktop\Msc AI\MSc Project\Sonicom_1.sofa"
 MODIFIED_SOFA_PATH = os.path.join('audioprocessing', 'modified_sofa_file.sofa')
 VERBOSE = False
 
+def decibels(signal:np.ndarray)->np.ndarray:
+    # signal[signal == 0.0] = 1e-10
+    return 20 * np.log10(signal)
+
 def magnitude(x:complex):
     if np.iscomplexobj(x):
         return np.abs(x)
@@ -253,23 +257,29 @@ def goertzel_algorithm_time_to_freq(signal_time:np.ndarray, fs, target_bins=256)
     
     return signal_freq
 
-def normalise_tensor(tensor: torch.Tensor)-> torch.Tensor:
+def normalise_tensor(tensor: torch.Tensor, type="peak", scale=1.1182)-> torch.Tensor:
     '''Prevents clipping'''
-    # find the highest value
-    highest_val = torch.max(torch.abs(tensor))
-    debug(highest_val)
-    # scale down the entire tensor by that amount
-    normalised_tensor = tensor / highest_val
-    return normalised_tensor
+    if type == "rms":
+        rms_value = torch.sqrt(torch.mean(tensor**2))
+        return (tensor / rms_value) * scale #0.3084
+    else:
+        # find the highest value
+        highest_val = torch.max(torch.abs(tensor))
+        debug(highest_val)
+        # scale down the entire tensor by that amount
+        return (tensor / highest_val) * scale
 
-def normalise_ndarray(array: np.ndarray)-> np.ndarray:
+def normalise_ndarray(array: np.ndarray, type="rms", scale=1.0)-> np.ndarray:
     '''Prevents clipping'''
-    # find the highest value
-    highest_val = np.max(np.abs(array))
-    debug(highest_val)
-    # scale down the entire array by that amount
-    normalised_array = array / highest_val
-    return normalised_array
+    if type == "rms":
+        rms_value = np.sqrt(np.mean(array**2))
+        return array / rms_value
+    else:
+        # find the highest value
+        highest_val = np.max(np.abs(array))
+        debug(highest_val)
+        # scale down the entire array by that amount
+        return (array / highest_val) * scale
 
 def apply_to_hrtf_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> torch.Tensor:
     '''Takes in HRTF (no phase) of shape [5, 16, 16, 256] [PANELS, X, Y, CHANNELS] and applys a function to each point in the frequency domain'''
@@ -316,7 +326,7 @@ def apply_to_hrtf_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> to
 
                 modified_signal = torch.concatenate([modified_signal_left, modified_signal_right])
                 # modified_hrtf[panels][x][y] = np.abs(modified_signal)
-                modified_hrtf[panels][x][y] = np.abs(modified_signal)
+                modified_hrtf[panels][x][y] = normalise_tensor(modified_signal, "rms", 0.3084)
     return modified_hrtf
 
 def apply_to_hrir_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> torch.Tensor:
@@ -348,11 +358,12 @@ def apply_to_hrir_points(hrtf:torch.Tensor, func:callable, *args, **kwargs)-> to
                 )
 
                 modified_signal = torch.concatenate([modified_signal_left, modified_signal_right])
-                modified_hrtf[panels][x][y] = modified_signal
+                # modified_hrtf[panels][x][y] = modified_signal
+                modified_hrtf[panels][x][y] = normalise_tensor(modified_signal, "rms", 0.3084)
 
     return modified_hrtf
 
-def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=1, truncate=True):
+def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5, truncate=True):
     """ Apply reverb to hrtf. Expects hrtf of shape [256, 5, 16, 16] (CHANNELS, PANELS, X, Y)
     Returns hrtf of shape [256, 5, 16, 16]
     """
@@ -373,7 +384,8 @@ def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=1, truncate=True):
     # reverb_hrtf = apply_to_hrtf_points(lr_hrtf, multiply, reverb_signal_freq)
 
     # Convolution in the time domain
-    reverb_audio = goertzel_algorithm_time_to_time(reverb_audio, config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF)
+    # reverb_audio = goertzel_algorithm_time_to_time(reverb_audio, config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF)
+    reverb_audio = reverb_audio[:config.NBINS_HRTF] #truncated reverb
     reverb_hrtf = apply_to_hrir_points(lr_hrtf, np.convolve, reverb_audio)
 
     lr_hrtf = wetdry_tensor(reverb_hrtf, lr_hrtf, wetdry)

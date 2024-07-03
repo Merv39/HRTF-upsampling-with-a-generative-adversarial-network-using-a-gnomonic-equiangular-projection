@@ -122,6 +122,10 @@ def train(config, train_prefetcher):
 
             # Use the generator model to generate fake samples
             sr = netG(lr)
+            if torch.isnan(lr).any():
+                raise ValueError(f"NaNs found in initial model input; epoch {epoch}, batch {batch_index}")
+            elif torch.isnan(sr).any():
+                raise ValueError(f"NaNs found in initial model output; epoch {epoch}, batch {batch_index}")
 
             # Calculate the classification score of the discriminator model for real samples
             label = torch.full((batch_size, ), 1., dtype=hr.dtype, device=device)
@@ -149,6 +153,9 @@ def train(config, train_prefetcher):
                 # Initialize generator model gradients
                 netG.zero_grad()
                 sr = netG(lr)
+                if torch.isnan(sr).any():
+                    raise ValueError(f"NaNs found in training model output; epoch {epoch}, batch {batch_index}")
+
                 label.fill_(1.)
                 # Calculate adversarial loss
                 output = netD(sr).view(-1)
@@ -207,9 +214,10 @@ def train(config, train_prefetcher):
             i_plot = 0
             magnitudes_real = torch.permute(hr.detach().cpu()[i_plot], (1, 2, 3, 0))
             magnitudes_interpolated = torch.permute(sr.detach().cpu()[i_plot], (1, 2, 3, 0))
+            magnitudes_corrupted = torch.permute(lr.detach().cpu()[i_plot], (1, 2, 3, 0))
 
             plot_label = filename[i_plot].split('/')[-1] + '_epoch' + str(epoch)
-            plot_magnitude_spectrums(pos_freqs, magnitudes_real[:, :, :, :config.nbins_hrtf], magnitudes_interpolated[:, :, :, :config.nbins_hrtf],
+            plot_magnitude_spectrums(pos_freqs, magnitudes_real[:, :, :, :config.nbins_hrtf], magnitudes_interpolated[:, :, :, :config.nbins_hrtf], magnitudes_corrupted[:, :, :, :config.nbins_hrtf],
                                      "left", "training", plot_label, path, log_scale_magnitudes=True)
 
     plot_losses(train_losses_D, train_losses_G,
