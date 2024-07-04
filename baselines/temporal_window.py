@@ -43,8 +43,8 @@ def run_temporal_window_baseline(config, temporal_window_output_path, subject_fi
         In real life, the trucation time would be determined by calculating the distance from the speaker to the ear.
         '''
         # Apply truncation in the time domain: cut off the ends of np.ndarray (the total length is config.NBINS_HRTF * 2)
-        temporal_window_hr_merged = apply_to_hrir_points(lr_hrtf, truncate_array, 150)
-        # temporal_window_hr_merged = apply_to_hrir_points(hr_hrtf, truncate_array, 150)
+        temporal_window_hr_merged = apply_to_hrir_points(lr_hrtf, False, truncate_array, 150)
+        # temporal_window_hr_merged = apply_to_hrir_points(hr_hrtf, False,  truncate_array, 150)
 
         with open(temporal_window_output_path + file_name, "wb") as file:
             pickle.dump(temporal_window_hr_merged, file)
