@@ -343,7 +343,7 @@ def plot_losses(train_losses_1, train_losses_2, label_1, label_2, color_1, color
     plt.savefig(f'{path}/{filename}.png')
 
 
-def plot_magnitude_spectrums(frequencies, magnitudes_real, magnitudes_interpolated, ear, mode, label, path,
+def plot_magnitude_spectrums(frequencies, magnitudes_real, magnitudes_interpolated, magnitudes_corrupted, ear, mode, label, path,
                              log_scale_magnitudes=True):
     fig, axs = plt.subplots(3, 3, sharex='all', sharey='all', figsize=(9, 9))
 
@@ -364,12 +364,15 @@ def plot_magnitude_spectrums(frequencies, magnitudes_real, magnitudes_interpolat
         if log_scale_magnitudes:
             magnitudes_real_plot = 20 * np.log10(magnitudes_real[indices[0]][indices[1]][indices[2]])
             magnitudes_interpolated_plot = 20 * np.log10(magnitudes_interpolated[indices[0]][indices[1]][indices[2]])
+            magnitudes_corrupted_plot = 20 * np.log10(magnitudes_corrupted[indices[0]][indices[1]][indices[2]])
         else:
             magnitudes_real_plot = magnitudes_real[indices[0]][indices[1]][indices[2]]
             magnitudes_interpolated_plot = magnitudes_interpolated[indices[0]][indices[1]][indices[2]]
+            magnitudes_corrupted_plot = magnitudes_corrupted[indices[0]][indices[1]][indices[2]]
 
         axs[row, col].plot(frequencies, magnitudes_real_plot, label="Real HRTF")
         axs[row, col].plot(frequencies, magnitudes_interpolated_plot, label="GAN interpolated HRTF")
+        axs[row, col].plot(frequencies, magnitudes_corrupted_plot, label="Corrupted HRTF")
 
         axs[row, col].set(title=f"(az={round(azimuth)}\u00B0, el={round(elevation)}\u00B0)",
                           xlabel='Frequency in Hz', ylabel='Amplitude in dB')
