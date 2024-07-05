@@ -333,6 +333,7 @@ def apply_to_hrtf_points(hrtf:torch.Tensor, normalise:bool, func:callable, *args
 
 def apply_to_hrir_points(hrtf:torch.Tensor, normalise:bool, func:callable, *args, **kwargs)-> torch.Tensor:
     '''Takes in HRTF (no phase) of shape [5, 16, 16, 256] [PANELS, X, Y, CHANNELS] and applys a function to each point in the time domain'''
+    test_count = 1
     dims = hrtf.shape
     PANELS = dims[0]; X = dims[1]; Y = dims[2]; CHANNELS = dims[3]
 
@@ -359,6 +360,22 @@ def apply_to_hrir_points(hrtf:torch.Tensor, normalise:bool, func:callable, *args
                     goertzel_algorithm_time_to_freq(hrir_point_right, fs=config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF)
                 )
 
+                if test_count != None:
+                    # dry_data = np.int32(normalise_ndarray(hrir_point_left) * 2147483647)
+                    wet_data = np.int32(normalise_ndarray(hrir_point_left) * 2147483647)
+
+                    # scipy.io.wavfile.write(concat("dry", "x", x, "y", y, "panel", panels, ".wav"), 
+                    #                        48000, 
+                    #                        dry_data
+                    # )
+                    scipy.io.wavfile.write(concat("wet", "x", x, "y", y, "panel", panels, ".wav"), 
+                                           48000, 
+                                           wet_data
+                    )
+                    test_count -= 1
+                    if test_count == 0:
+                        exit()
+
                 modified_signal = torch.concatenate([modified_signal_left, modified_signal_right])
                 # Normalise adds LSD error to filter
                 if normalise:
@@ -368,10 +385,19 @@ def apply_to_hrir_points(hrtf:torch.Tensor, normalise:bool, func:callable, *args
 
     return modified_hrtf
 
-def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=1.0, truncate=True):
+def convolve_and_truncate(signal1, signal2):
+    result = scipy.signal.convolve(signal1, signal2)
+    window = np.hamming(len(result))
+    # result = result[config.NBINS_HRTF] #This kind of truncation causes distortion
+    return result * window
+
+
+def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5, truncate=False):
     """ Apply reverb to hrtf. Expects hrtf of shape [256, 5, 16, 16] (CHANNELS, PANELS, X, Y)
     Returns hrtf of shape [256, 5, 16, 16]
     """
+    wetdry = config.WETDRY_RATIO
+
     # Read and Convert Impulse Response to the Frequency Domain
     current_dir = os.path.dirname(os.path.abspath(__file__))
     # filepath = os.path.join(current_dir, 'IMP-classroom.wav')
@@ -390,10 +416,12 @@ def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=1.0, truncate=True):
     # reverb_hrtf = apply_to_hrtf_points(lr_hrtf, multiply, reverb_signal_freq)
 
     # Convolution in the time domain
-    # reverb_audio = goertzel_algorithm_time_to_time(reverb_audio, config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF)
-    reverb_audio = reverb_audio[:config.NBINS_HRTF] #truncated reverb
     reverb_audio = normalise_ndarray(reverb_audio, "rms", 0.3084)
-    reverb_hrtf = apply_to_hrir_points(lr_hrtf, True, np.convolve, reverb_audio)
+    if truncate:
+        reverb_hrtf = apply_to_hrir_points(lr_hrtf, True, convolve_and_truncate, reverb_audio)
+    else:
+        reverb_hrtf = apply_to_hrir_points(lr_hrtf, True, scipy.signal.convolve, reverb_audio)
+    
     reverb_hrtf = normalise_tensor(reverb_hrtf, "rms", 0.3084)
 
     lr_hrtf = wetdry_tensor(reverb_hrtf, lr_hrtf, wetdry)

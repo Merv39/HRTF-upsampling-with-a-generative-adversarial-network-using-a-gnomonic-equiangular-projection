@@ -34,20 +34,12 @@ def run_temporal_window_baseline(config, temporal_window_output_path, subject_fi
             hr_hrtf = pickle.load(f)
 
         # make a corrupted version of the hrtf
-        lr_hrtf = torch.permute(reverberate_hrtf(torch.permute(hr_hrtf, (3, 0, 1, 2))),(1, 2, 3, 0))
-
-        #TODO: temporal window (Truncate in the time domain)
-        '''
-        A hrtf is measured with speakers around a person which play a sine sweep.
-        Microphones are placed in each ear to measure the change in frequencies arriving into the ear.
-        In real life, the trucation time would be determined by calculating the distance from the speaker to the ear.
-        '''
-        # Apply truncation in the time domain: cut off the ends of np.ndarray (the total length is config.NBINS_HRTF * 2)
-        temporal_window_hr_merged = apply_to_hrir_points(lr_hrtf, False, truncate_array, 150)
-        # temporal_window_hr_merged = apply_to_hrir_points(hr_hrtf, False,  truncate_array, 150)
+        truncated_hrtf = torch.permute(
+            reverberate_hrtf(torch.permute(hr_hrtf, (3, 0, 1, 2)), truncate=True)
+            ,(1, 2, 3, 0))
 
         with open(temporal_window_output_path + file_name, "wb") as file:
-            pickle.dump(temporal_window_hr_merged, file)
+            pickle.dump(truncated_hrtf, file)
 
         print('Created temporal window baseline %s' % file_name.replace('/', ''))
 
