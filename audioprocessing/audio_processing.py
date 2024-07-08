@@ -385,11 +385,12 @@ def apply_to_hrir_points(hrtf:torch.Tensor, normalise:bool, func:callable, *args
 
     return modified_hrtf
 
-def convolve_and_truncate(signal1, signal2):
+def convolve_and_truncate(signal1, signal2, start=336, end=552): #7ms and 11.5ms respectively
     result = scipy.signal.convolve(signal1, signal2)
-    window = np.hamming(len(result))
-    # result = result[config.NBINS_HRTF] #This kind of truncation causes distortion
-    return result * window
+    result = result[start:end]
+    window = np.hamming(len(result)) #prevents distortion from cut signal
+    result = result * window
+    return np.pad(result, (0 , config.NBINS_HRIR-len(result))) #pad with 0s if less than NBINS_HRIR
 
 
 def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5, truncate=False):
