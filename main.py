@@ -42,7 +42,10 @@ def modify_config(constant:str, new_value):
     with open(config_file_path, 'w') as file:
         for line in lines:
             if line.startswith(constant):
-                file.write(f'{constant} = "{new_value}"\n')
+                if type(new_value) == str:
+                    file.write(f'{constant} = "{new_value}"\n')
+                else:
+                    file.write(f'{constant} = {new_value}\n')
             else:
                 file.write(line)
 
@@ -313,8 +316,8 @@ if __name__ == '__main__':
         import config
     
     if args.wetdry:
-        print(args.wetdrt)
-        modify_config(constant='WETDRY_RATIO', new_value=args.wetdry)
+        print(args.wetdry)
+        modify_config(constant='WETDRY_RATIO', new_value=float(args.wetdry))
         import config
 
     if args.hpc == "True":

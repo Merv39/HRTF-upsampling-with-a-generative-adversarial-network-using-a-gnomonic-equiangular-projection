@@ -111,6 +111,9 @@ def train(config, train_prefetcher):
                                      non_blocking=True, dtype=torch.float)
             hr = batch_data["hr"].to(device=device, memory_format=torch.contiguous_format,
                                      non_blocking=True, dtype=torch.float)
+            
+            if torch.equal(lr, hr):
+                raise ValueError(f"Original and Corrupted Data is the same")
 
             # during every 25th epoch and last epoch, save filename for mag spectrum plot
             if epoch % 25 == 0 or epoch == (num_epochs - 1):
@@ -213,8 +216,8 @@ def train(config, train_prefetcher):
         if epoch % 25 == 0 or epoch == (num_epochs - 1):
             i_plot = 0
             magnitudes_real = torch.permute(hr.detach().cpu()[i_plot], (1, 2, 3, 0))
-            magnitudes_interpolated = torch.permute(sr.detach().cpu()[i_plot], (1, 2, 3, 0))
             magnitudes_corrupted = torch.permute(lr.detach().cpu()[i_plot], (1, 2, 3, 0))
+            magnitudes_interpolated = torch.permute(sr.detach().cpu()[i_plot], (1, 2, 3, 0))
 
             plot_label = filename[i_plot].split('/')[-1] + '_epoch' + str(epoch)
             plot_magnitude_spectrums(pos_freqs, magnitudes_real[:, :, :, :config.nbins_hrtf], magnitudes_interpolated[:, :, :, :config.nbins_hrtf], magnitudes_corrupted[:, :, :, :config.nbins_hrtf],

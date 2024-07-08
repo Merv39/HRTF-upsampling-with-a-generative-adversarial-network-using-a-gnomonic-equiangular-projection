@@ -190,10 +190,6 @@ def goertzel_algorithm_time(signal_time:np.ndarray, fs, target_bins=256, plot=Fa
     L = len(signal_time) #length in the time domain
     target_bins = target_bins*2 #target bins in halved frequency domain
 
-    # Calculate full FFT for reference
-    signal_freq = magnitude_fft(signal_time)
-    f1 = np.linspace(0, fs, L, endpoint=False)
-
     # Calculate every 2nd sample of FFT
     # Perform the aliasing operation in time domain
     mid_index = L // 2
@@ -206,10 +202,14 @@ def goertzel_algorithm_time(signal_time:np.ndarray, fs, target_bins=256, plot=Fa
         signal_time2 = signal_time[:mid_index] + signal_time[mid_index:]
     else:
         signal_time2 = signal_time[:mid_index] + signal_time[mid_index+1:]
+
     signal_freq2 = magnitude_fft(signal_time2)
-    f2 = np.linspace(0, fs, L//2, endpoint=False)
 
     if plot:
+         # Calculate full FFT for reference
+        signal_freq = magnitude_fft(signal_time)
+        f1 = np.linspace(0, fs, L, endpoint=False)
+        f2 = np.linspace(0, fs, L//2, endpoint=False)
         plt.plot(f2, abs(signal_freq2), 'go-')
         plt.plot(f1, abs(signal_freq), 'rx-')
 
@@ -333,7 +333,7 @@ def apply_to_hrtf_points(hrtf:torch.Tensor, normalise:bool, func:callable, *args
 
 def apply_to_hrir_points(hrtf:torch.Tensor, normalise:bool, func:callable, *args, **kwargs)-> torch.Tensor:
     '''Takes in HRTF (no phase) of shape [5, 16, 16, 256] [PANELS, X, Y, CHANNELS] and applys a function to each point in the time domain'''
-    test_count = 1
+    test_count = None
     dims = hrtf.shape
     PANELS = dims[0]; X = dims[1]; Y = dims[2]; CHANNELS = dims[3]
 
@@ -348,6 +348,9 @@ def apply_to_hrir_points(hrtf:torch.Tensor, normalise:bool, func:callable, *args
 
                 hrir_point_left = minimum_phase_ifft(hrtf_point_left) #inverse fft with magnitude, no phase
                 hrir_point_right = minimum_phase_ifft(hrtf_point_right) #inverse fft with magnitude, no phase
+
+                # dry_data = np.int32(normalise_ndarray(hrir_point_left, "peak") * 2147483647)
+                # scipy.io.wavfile.write(concat("dry", "x", x, "y", y, "panel", panels, ".wav"), 48000, dry_data)
                 
                 hrir_point_left = func(hrir_point_left, *args)
                 hrir_point_right = func(hrir_point_right, *args)
@@ -362,16 +365,11 @@ def apply_to_hrir_points(hrtf:torch.Tensor, normalise:bool, func:callable, *args
 
                 if test_count != None:
                     # dry_data = np.int32(normalise_ndarray(hrir_point_left) * 2147483647)
-                    wet_data = np.int32(normalise_ndarray(hrir_point_left) * 2147483647)
+                    wet_data = np.int32(normalise_ndarray(hrir_point_left, "peak") * 2147483647)
 
-                    # scipy.io.wavfile.write(concat("dry", "x", x, "y", y, "panel", panels, ".wav"), 
-                    #                        48000, 
-                    #                        dry_data
-                    # )
-                    scipy.io.wavfile.write(concat("wet", "x", x, "y", y, "panel", panels, ".wav"), 
-                                           48000, 
-                                           wet_data
-                    )
+                    # scipy.io.wavfile.write(concat("dry", "x", x, "y", y, "panel", panels, ".wav"), 48000, dry_data)
+                    scipy.io.wavfile.write(concat("wet", "x", x, "y", y, "panel", panels, ".wav"), 48000, wet_data)
+                    
                     test_count -= 1
                     if test_count == 0:
                         exit()

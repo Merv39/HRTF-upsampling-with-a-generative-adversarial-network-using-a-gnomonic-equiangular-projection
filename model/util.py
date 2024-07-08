@@ -33,12 +33,10 @@ def load_dataset(config, mean=None, std=None) -> [CUDAPrefetcher, CUDAPrefetcher
 
     # Load train, test and valid datasets
     if config.merge_flag:
-        #SOMETHING HAS GONE WRONG HERE
         print(config.train_hrtf_merge_dir)
         train_datasets = TrainValidHRTFDataset(config.train_hrtf_merge_dir, config.hrtf_size, config.upscale_factor, transform)
         valid_datasets = TrainValidHRTFDataset(config.valid_hrtf_merge_dir, config.hrtf_size, config.upscale_factor, transform)
         print(config.train_hrtf_merge_dir, config.hrtf_size, config.upscale_factor, transform)
-        print("HERE", len(train_datasets))
     else:
         train_datasets = TrainValidHRTFDataset(config.train_hrtf_dir, config.hrtf_size, config.upscale_factor, transform)
         valid_datasets = TrainValidHRTFDataset(config.valid_hrtf_dir, config.hrtf_size, config.upscale_factor, transform)

@@ -45,7 +45,7 @@ def filter_array(array:np.ndarray, cutoff=0, type="lowpass")->np.ndarray:
 def filter_hrtf(hr_hrtf:torch.Tensor):
     cutoff = 128 #frequency bins per side = 128
     lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
-    lr_hrtf = apply_to_hrtf_points(lr_hrtf, filter_array, cutoff, "lowpass")
+    lr_hrtf = apply_to_hrtf_points(lr_hrtf, False, filter_array, cutoff, "lowpass")
     lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
     # print("Reverb Tensors same:", torch.equal(hr_hrtf, lr_hrtf))
     return lr_hrtf
@@ -114,6 +114,8 @@ class TrainValidHRTFDataset(Dataset):
         # downsample hrtf
         # lr_hrtf = downsample_hrtf(hr_hrtf, self.hrtf_size, self.upscale_factor)
         lr_hrtf = modify_hrtf(hr_hrtf)
+        if torch.equal(lr_hrtf, hr_hrtf):
+            print("HRTF UNCHANGED")
         
         return {"lr": lr_hrtf, "hr": hr_hrtf, "filename": self.hrtf_file_names[batch_index]}
 
