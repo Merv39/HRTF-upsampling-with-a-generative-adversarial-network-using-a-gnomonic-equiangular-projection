@@ -308,6 +308,7 @@ if __name__ == '__main__':
     parser.add_argument("--type")
     parser.add_argument("-c", "--hpc")
     parser.add_argument("--wetdry")
+    parser.add_argument("--truncate")
     args = parser.parse_args()
 
     if args.type:
@@ -318,6 +319,11 @@ if __name__ == '__main__':
     if args.wetdry:
         print(args.wetdry)
         modify_config(constant='WETDRY_RATIO', new_value=float(args.wetdry))
+        import config
+
+    if args.truncate:
+        print("truncate")
+        modify_config(constant='TRUNCATE', new_value=True)
         import config
 
     if args.hpc == "True":

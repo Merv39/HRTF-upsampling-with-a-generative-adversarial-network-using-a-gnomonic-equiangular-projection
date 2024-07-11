@@ -54,7 +54,6 @@ def replace_nodes(config, sr_dir, file_name):
     return load_hrtfs(config, sr_dir, file_name, replace_nodes=True)
 
 def run_rt60_evaluation(config, sr_dir, file_ext=None):
-    return
 
     file_ext = 'rt60_errors.pickle' if file_ext is None else file_ext
 
@@ -76,8 +75,8 @@ def run_rt60_evaluation(config, sr_dir, file_ext=None):
         # for each point, calculate the RT60
         error = rt60_metric(target)
         subject_id = ''.join(re.findall(r'\d+', file_name))
-        rt60_errors.append([subject_id,  float(error.detach())])
-        print('RT60 of subject %s: %0.4f' % (subject_id, float(error.detach())))
+        rt60_errors.append([subject_id,  float(error)])
+        print('RT60 of subject %s: %0.4f' % (subject_id, float(error)))
 
     print('Mean RT60: %0.3f' % np.mean([error[1] for error in rt60_errors]))
     with open(f'{config.path}/{file_ext}', "wb") as file:

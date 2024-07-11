@@ -43,7 +43,7 @@ def filter_array(array:np.ndarray, cutoff=0, type="lowpass")->np.ndarray:
     return array * freq_mask
 
 def filter_hrtf(hr_hrtf:torch.Tensor):
-    cutoff = 128 #frequency bins per side = 128
+    cutoff = config.CUTOFF #frequency bins per side = 128
     lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
     lr_hrtf = apply_to_hrtf_points(lr_hrtf, False, filter_array, cutoff, "lowpass")
     lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)

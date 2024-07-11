@@ -4,12 +4,13 @@ import shutil
 from pathlib import Path
 import numpy as np
 import config
+import pyroomacoustics
 
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 
 from model.dataset import CUDAPrefetcher, TrainValidHRTFDataset, CPUPrefetcher
-
+from audioprocessing.audio_processing import minimum_phase_ifft
 
 def initialise_folders(config, overwrite):
     """Set up folders for given tag
@@ -85,8 +86,11 @@ def progress(i, batches, n, num_epochs, timed):
     message = 'batch {} of {}, epoch {} of {}'.format(i, batches, n, num_epochs)
     print(f"Progress: {message}, Time per iter: {timed}")
 
+def rt60(hrir:np.ndarray, sampling_rate = config.HRIR_SAMPLERATE):
+    rt60_time = pyroomacoustics.experimental.rt60.measure_rt60(hrir, fs=sampling_rate, decay_db=20, energy_thres=0.50, plot=False)
+    return rt60_time
+
 def rt60_metric(target, reduction='mean'):
-    import pyroomacoustics
     """Computes the mean rt60 for a 5 dimensional tensor (N x C x P x W x H)
     Where N is the batch size, C is the number of frequency bins, P is the number of panels (usually 5),
     H is height, and W is width.
@@ -96,28 +100,34 @@ def rt60_metric(target, reduction='mean'):
     num_panels = target.size(2)
     height = target.size(3)
     width = target.size(4)
-    total_positions = num_panels * height * width
+    total_positions = num_panels * height * width * 2 # Left and Right
 
-    total_sd_metric = 0
+    total_rt_metric = 0
     for b in range(batch_size):
         total_all_positions = 0
         for i in range(num_panels):
             for j in range(height):
                 for k in range(width):
                     hrtf_point = target[b, :, i, j, k]
-                    hrir_point = np.fft.irfft(hrtf_point)
 
-                    point_rt60 = pyroomacoustics.experimental.rt60.measure_rt60(hrir_point, fs=config.HRIR_SAMPLERATE, decay_db=60, energy_thres=0.95)
-                    point_rt60 = torch.from_numpy(np.array(point_rt60))
-                    total_all_positions += torch.sqrt(point_rt60)
+                    hrtf_point_left = hrtf_point[:config.NBINS_HRTF].numpy()
+                    hrtf_point_right = hrtf_point[config.NBINS_HRTF:].numpy()
+                    hrir_point_left = minimum_phase_ifft(hrtf_point_left) #inverse fft with magnitude, no phase
+                    hrir_point_right = minimum_phase_ifft(hrtf_point_right) #inverse fft with magnitude, no phase
+
+                    point_left_rt60 = rt60(hrir_point_left)
+                    total_all_positions += np.sqrt(point_left_rt60)
+
+                    point_right_rt60 = rt60(hrir_point_right)
+                    total_all_positions += np.sqrt(point_right_rt60)
                     
-        sd_metric = total_all_positions / total_positions
-        total_sd_metric += sd_metric
+        rt_metric = total_all_positions / total_positions
+        total_rt_metric += rt_metric
 
     if reduction == 'mean':
-        output_loss = total_sd_metric / batch_size
+        output_loss = total_rt_metric / batch_size
     elif reduction == 'sum':
-        output_loss = total_sd_metric
+        output_loss = total_rt_metric
     else:
         raise RuntimeError("Please specify a valid method for reduction (either 'mean' or 'sum').")
     return output_loss

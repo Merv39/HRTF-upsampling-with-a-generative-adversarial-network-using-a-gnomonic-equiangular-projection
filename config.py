@@ -12,8 +12,12 @@ TRAIN_SAMPLES_RATIO = 0.8
 HRIR_SAMPLERATE = 48000.0
 
 TYPE = "reverb"
+
 WETDRY_RATIO = 0.5
 EPSILON = 1.0e-8
+TRUNCATE = True
+
+CUTOFF = 64
 
 class Config:
     """Config class

@@ -23,7 +23,7 @@ MODIFIED_SOFA_PATH = os.path.join('audioprocessing', 'modified_sofa_file.sofa')
 VERBOSE = False
 
 def decibels(signal:np.ndarray)->np.ndarray:
-    # signal[signal == 0.0] = 1e-10
+    signal[signal == 0.0] = config.EPSILON
     return 20 * np.log10(signal)
 
 def magnitude(x:complex):
@@ -233,6 +233,10 @@ def goertzel_algorithm_freq(signal_freq:np.ndarray, fs, target_bins=256, phase=F
     
     return signal_freq
 
+def resample_time_to_freq(signal_time:np.ndarray, target_bins = config.NBINS_HRIR) -> np.ndarray:
+    signal_time = scipy.signal.resample(signal_time, target_bins)
+    return magnitude_fft(signal_time)
+
 def goertzel_algorithm_time_to_time(signal_time:np.ndarray, fs, target_bins=256) -> np.ndarray:
     '''Input: time domain signal
     Returns: shortened time domain signal'''
@@ -298,14 +302,10 @@ def apply_to_hrtf_points(hrtf:torch.Tensor, normalise:bool, func:callable, *args
                 modified_signal_right = func(hrtf_point_right, *args, **kwargs)
 
                 modified_signal_left = torch.from_numpy(
-                    #modified_signal_left[:128]
                     goertzel_algorithm_freq(modified_signal_left, fs=config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF)
-                    #frequency_bin_mapping_freq_domain(modified_signal, fs=config.HRIR_SAMPLERATE)
                 )
                 modified_signal_right = torch.from_numpy(
-                    #modified_signal_right[:128]
                     goertzel_algorithm_freq(modified_signal_right, fs=config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF)
-                    #frequency_bin_mapping_freq_domain(modified_signal, fs=config.HRIR_SAMPLERATE)
                 )
 
                 if test_count != None:
@@ -383,15 +383,18 @@ def apply_to_hrir_points(hrtf:torch.Tensor, normalise:bool, func:callable, *args
 
     return modified_hrtf
 
-def convolve_and_truncate(signal1, signal2, start=336, end=552): #7ms and 11.5ms respectively
+def convolve_and_truncate(signal1, signal2, start=0, end=552): #End at 11.5ms
     result = scipy.signal.convolve(signal1, signal2)
     result = result[start:end]
     window = np.hamming(len(result)) #prevents distortion from cut signal
     result = result * window
-    return np.pad(result, (0 , config.NBINS_HRIR-len(result))) #pad with 0s if less than NBINS_HRIR
+    if len(result) < config.NBINS_HRIR:
+        return np.pad(result, (0 , config.NBINS_HRIR-len(result))) #pad with 0s if less than NBINS_HRIR
+    else:
+        return result
 
 
-def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5, truncate=False):
+def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5, truncate=config.TRUNCATE):
     """ Apply reverb to hrtf. Expects hrtf of shape [256, 5, 16, 16] (CHANNELS, PANELS, X, Y)
     Returns hrtf of shape [256, 5, 16, 16]
     """
@@ -401,16 +404,16 @@ def reverberate_hrtf(hr_hrtf:torch.Tensor, wetdry=0.5, truncate=False):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     # filepath = os.path.join(current_dir, 'IMP-classroom.wav')
     filepath = os.path.join(current_dir, 'Single_502_2_RIR.wav')
-
     # Convert the reverb to the correct sample rate and number of frequency bins for convolution
     reverb_audio = librosa.load(filepath, sr=config.HRIR_SAMPLERATE, mono=True)[0]
-    reverb_audio_freq = magnitude_fft(reverb_audio)
-    reverb_signal_freq = goertzel_algorithm_freq(reverb_audio_freq, config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF, phase=True)
-    reverb_signal_freq = normalise_ndarray(reverb_signal_freq)
+    reverb_audio = reverb_audio[336:] #cut off first 7ms
 
     lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
 
     # Convolution in the frequency domain
+    # reverb_audio_freq = magnitude_fft(reverb_audio)
+    # reverb_signal_freq = goertzel_algorithm_freq(reverb_audio_freq, config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF, phase=True)
+    # reverb_signal_freq = normalise_ndarray(reverb_signal_freq)
     # multiply = lambda a,b : a * b
     # reverb_hrtf = apply_to_hrtf_points(lr_hrtf, multiply, reverb_signal_freq)
 
