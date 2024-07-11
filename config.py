@@ -15,7 +15,7 @@ TYPE = "reverb"
 
 WETDRY_RATIO = 0.5
 EPSILON = 1.0e-8
-TRUNCATE = True
+TRUNCATE = False
 
 CUTOFF = 64
 

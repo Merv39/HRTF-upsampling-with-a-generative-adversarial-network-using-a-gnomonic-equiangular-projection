@@ -325,6 +325,10 @@ if __name__ == '__main__':
         print("truncate")
         modify_config(constant='TRUNCATE', new_value=True)
         import config
+    else:
+        print("no truncate")
+        modify_config(constant='TRUNCATE', new_value=False)
+        import config
 
     if args.hpc == "True":
         hpc = True

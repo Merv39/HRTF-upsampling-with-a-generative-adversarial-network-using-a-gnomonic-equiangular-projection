@@ -182,6 +182,10 @@ def minimum_phase_ifft(hrtf:np.ndarray)->np.ndarray:
     hrir = scipy.fft.irfft((np.abs(hrtf) * np.exp(1j * phase)))
     return hrir
 
+def resample_time_to_freq(signal_time:np.ndarray, target_bins = config.NBINS_HRIR) -> np.ndarray:
+    signal_time = scipy.signal.resample(signal_time, target_bins)
+    return magnitude_fft(signal_time)
+
 # modified from https://dsp.stackexchange.com/a/40821
 # if the target number of bins is more than half, don't half
 def goertzel_algorithm_time(signal_time:np.ndarray, fs, target_bins=256, plot=False) -> tuple[np.ndarray, np.ndarray]:
@@ -203,8 +207,6 @@ def goertzel_algorithm_time(signal_time:np.ndarray, fs, target_bins=256, plot=Fa
     else:
         signal_time2 = signal_time[:mid_index] + signal_time[mid_index+1:]
 
-    signal_freq2 = magnitude_fft(signal_time2)
-
     if plot:
          # Calculate full FFT for reference
         signal_freq = magnitude_fft(signal_time)
@@ -215,7 +217,7 @@ def goertzel_algorithm_time(signal_time:np.ndarray, fs, target_bins=256, plot=Fa
 
         plt.xlim((0, fs/2))
         plt.show()
-    return signal_time2, signal_freq2
+    return signal_time2
 
 def goertzel_algorithm_freq(signal_freq:np.ndarray, fs, target_bins=256, phase=False) -> np.ndarray:
     '''Input: frequency domain signal
@@ -225,41 +227,30 @@ def goertzel_algorithm_freq(signal_freq:np.ndarray, fs, target_bins=256, phase=F
         signal_time = np.fft.ifft(signal_freq)
     else:
         signal_time = minimum_phase_ifft(signal_freq)
-        # signal_time = np.fft.irfft(signal_freq)
 
     #while frequency bins is not the desired number, keep repeating
-    while len(signal_freq) > target_bins:
-        signal_time, signal_freq = goertzel_algorithm_time(signal_time, fs, target_bins)
+    while len(signal_time) > target_bins*2:
+        signal_time = goertzel_algorithm_time(signal_time, fs, target_bins)
     
-    return signal_freq
-
-def resample_time_to_freq(signal_time:np.ndarray, target_bins = config.NBINS_HRIR) -> np.ndarray:
-    signal_time = scipy.signal.resample(signal_time, target_bins)
     return magnitude_fft(signal_time)
 
 def goertzel_algorithm_time_to_time(signal_time:np.ndarray, fs, target_bins=256) -> np.ndarray:
     '''Input: time domain signal
     Returns: shortened time domain signal'''
-    #inverse FFT to time domain
-    signal_freq = magnitude_fft(signal_time)
-
     #while frequency bins is not the desired number, keep repeating
-    while len(signal_freq) > target_bins:
-        signal_time, signal_freq = goertzel_algorithm_time(signal_time, fs, target_bins)
+    while len(signal_time) > target_bins*2:
+        signal_time = goertzel_algorithm_time(signal_time, fs, target_bins)
     
     return signal_time
 
 def goertzel_algorithm_time_to_freq(signal_time:np.ndarray, fs, target_bins=256) -> np.ndarray:
     '''Input: time domain signal
     Returns: shortened frequency domain signal'''
-    #inverse FFT to time domain
-    signal_freq = magnitude_fft(signal_time)
-
     #while frequency bins is not the desired number, keep repeating
-    while len(signal_freq) > target_bins:
-        signal_time, signal_freq = goertzel_algorithm_time(signal_time, fs, target_bins)
+    while len(signal_time) > target_bins*2:
+        signal_time = goertzel_algorithm_time(signal_time, fs, target_bins)
     
-    return signal_freq
+    return magnitude_fft(signal_time)
 
 def normalise_tensor(tensor: torch.Tensor, type="peak", scale=1.1182)-> torch.Tensor:
     '''Prevents clipping'''

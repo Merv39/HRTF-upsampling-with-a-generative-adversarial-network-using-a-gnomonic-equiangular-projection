@@ -9,27 +9,29 @@ from audioprocessing.audio_processing import reverberate_hrtf
 from audioprocessing.audio_processing import apply_to_hrtf_points
 
 TYPE = None
+TRUNCATE = None
 
 def modify_hrtf(*args):
     '''
     This function to selects how the HRTF should be changed
     '''
-    global TYPE
-    if TYPE == None:
+    global TYPE, TRUNCATE
+    if TYPE == None or TRUNCATE == None:
         import sys
         if 'config' in sys.modules:
             del sys.modules['config']
         
         import config #re-import in case type has changed
         TYPE = config.TYPE
-        print(TYPE)
+        TRUNCATE = config.TRUNCATE
+        print(TYPE, TRUNCATE)
 
     if TYPE == "downsample":
         return downsample_hrtf(*args)
     if TYPE == "filter":
         return filter_hrtf(*args)
     else:
-        return reverberate_hrtf(*args)
+        return reverberate_hrtf(*args, truncate=TRUNCATE)
     
 def filter_array(array:np.ndarray, cutoff=0, type="lowpass")->np.ndarray:
     '''Takes in frequency domain array, and applys filter
