@@ -15,7 +15,7 @@ from preprocessing.utils import interpolate_fft, generate_euclidean_cube, conver
 from model import util
 from baselines.barycentric_interpolation import run_barycentric_interpolation
 from baselines.hrtf_selection import run_hrtf_selection
-from evaluation.evaluation import run_lsd_evaluation, run_localisation_evaluation, run_rt60_evaluation
+from evaluation.evaluation import run_lsd_evaluation, run_localisation_evaluation, run_rt60_evaluation, run_mse_evaluation
 from hrtfdata.full import SONICOM
 
 from audioprocessing.audio_processing import modify_sofa
@@ -201,6 +201,10 @@ def main(config, mode):
 
         file_ext = f'lsd_errors_passthrough_interpolated_data_{config.upscale_factor}.pickle'
         run_lsd_evaluation(config, passthrough_output_path, file_ext)
+        run_lsd_evaluation(config, passthrough_output_path, file_ext, random_subject=True)
+
+        file_ext = f'rt60_errors_passthrough_interpolated_data_{config.upscale_factor}.pickle'
+        run_mse_evaluation(config, passthrough_output_path, file_ext)
 
         file_ext = f'rt60_errors_passthrough_interpolated_data_{config.upscale_factor}.pickle'
         run_rt60_evaluation(config, passthrough_output_path, file_ext)
@@ -224,6 +228,7 @@ def main(config, mode):
 
         file_ext = f'lsd_errors_reverb_interpolated_data_{config.upscale_factor}.pickle'
         run_lsd_evaluation(config, reverb_output_path, file_ext)
+        run_lsd_evaluation(config, reverb_output_path, file_ext, random_subject=True)
 
         file_ext = f'rt60_errors_reverb_interpolated_data_{config.upscale_factor}.pickle'
         run_rt60_evaluation(config, reverb_output_path, file_ext)
@@ -247,7 +252,11 @@ def main(config, mode):
         config.path = config.temporal_window_hrtf_dir
 
         file_ext = f'lsd_errors_temporal_window_interpolated_data_{config.upscale_factor}.pickle'
+        run_mse_evaluation(config, temporal_window_output_path, file_ext)
+
+        file_ext = f'lsd_errors_temporal_window_interpolated_data_{config.upscale_factor}.pickle'
         run_lsd_evaluation(config, temporal_window_output_path, file_ext)
+        run_lsd_evaluation(config, temporal_window_output_path, file_ext, random_subject=True)
 
         file_ext = f'rt60_errors_temporal_window_interpolated_data_{config.upscale_factor}.pickle'
         run_rt60_evaluation(config, temporal_window_output_path, file_ext)

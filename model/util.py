@@ -90,7 +90,7 @@ def rt60(hrir:np.ndarray, sampling_rate = config.HRIR_SAMPLERATE):
     rt60_time = pyroomacoustics.experimental.rt60.measure_rt60(hrir, fs=sampling_rate, decay_db=20, energy_thres=0.50, plot=False)
     return rt60_time
 
-def rt60_metric(target, reduction='mean'):
+def rt60_metric(target:torch.Tensor, reduction='mean'):
     """Computes the mean rt60 for a 5 dimensional tensor (N x C x P x W x H)
     Where N is the batch size, C is the number of frequency bins, P is the number of panels (usually 5),
     H is height, and W is width.
@@ -131,6 +131,15 @@ def rt60_metric(target, reduction='mean'):
     else:
         raise RuntimeError("Please specify a valid method for reduction (either 'mean' or 'sum').")
     return output_loss
+
+def mean_squared_error_metric(generated, target, db = False, reduction="mean"):
+    """Computes the mean squared error of the tensors"""
+    mse = torch.mean((target - generated) ** 2)
+    if db:
+        mse_db = 10 * torch.log10(mse)
+        return mse_db
+    else:
+        return mse
 
 DEBUG_NAN = True
 def spectral_distortion_inner(input_spectrum, target_spectrum):

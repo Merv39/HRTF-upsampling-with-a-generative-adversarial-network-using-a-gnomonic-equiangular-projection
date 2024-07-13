@@ -1,4 +1,4 @@
-from model.util import spectral_distortion_metric, rt60_metric
+from model.util import spectral_distortion_metric, rt60_metric, mean_squared_error_metric
 from model.dataset import downsample_hrtf, modify_hrtf
 from preprocessing.utils import convert_to_sofa
 
@@ -65,24 +65,40 @@ def run_rt60_evaluation(config, sr_dir, file_ext=None):
     for file_name in sr_data_file_names:
         target, generated = load_hrtfs(config, sr_dir, file_name, replace_nodes=not KEEP_NODES)
 
-        # if torch.equal(generated, target):
-        #     print("ERROR, TARGET AND GENERATED HRTF ARE THE SAME")
-        # else:
-        #     print("Generated Shape:", generated.shape)
-        #     print("Target Shape:", target.shape)
-        
-        # Calculate and print LSD Error
         # for each point, calculate the RT60
-        error = rt60_metric(target)
+        error = rt60_metric(generated)
         subject_id = ''.join(re.findall(r'\d+', file_name))
         rt60_errors.append([subject_id,  float(error)])
-        print('RT60 of subject %s: %0.4f' % (subject_id, float(error)))
+        print('RT60 of subject %s: %0.4fs' % (subject_id, float(error)))
 
-    print('Mean RT60: %0.3f' % np.mean([error[1] for error in rt60_errors]))
+    print('Mean RT60: %0.3fs' % np.mean([error[1] for error in rt60_errors]))
     with open(f'{config.path}/{file_ext}', "wb") as file:
         pickle.dump(rt60_errors, file)
 
-def run_lsd_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
+def run_mse_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
+    '''sr_dir = directory of the superresolution HRTFs
+    '''
+
+    file_ext = 'mse_errors.pickle' if file_ext is None else file_ext
+
+    sr_data_paths = glob.glob('%s/%s_*' % (sr_dir, config.dataset))
+    sr_data_file_names = ['/' + os.path.basename(x) for x in sr_data_paths]
+
+    mse_errors = []
+    for file_name in sr_data_file_names:
+        target, generated = load_hrtfs(config, sr_dir, file_name, replace_nodes=not KEEP_NODES)
+
+        # Calculate and print MSE
+        error = mean_squared_error_metric(generated, target, db=False)
+        subject_id = ''.join(re.findall(r'\d+', file_name))
+        mse_errors.append([subject_id,  float(error.detach())])
+        print('Mean Squared Error of subject %s: %0.4f' % (subject_id, float(error.detach())))
+
+    print('Average MSE Error: %0.3f' % np.mean([error[1] for error in mse_errors]))
+    with open(f'{config.path}/{file_ext}', "wb") as file:
+        pickle.dump(mse_errors, file)
+
+def run_lsd_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None, random_subject=False):
     '''sr_dir = directory of the superresolution HRTFs
     '''
 
@@ -100,7 +116,7 @@ def run_lsd_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
             error = spectral_distortion_metric(generated, target)
             subject_id = ''.join(re.findall(r'\d+', file_name))
             lsd_errors.append([subject_id,  float(error.detach())])
-            print('LSD Error of subject %s: %0.4f' % (subject_id, float(error.detach())))
+            print('LSD Error of subject %s: %0.4fdB' % (subject_id, float(error.detach())))
     else:
         # Not HRTF Selection
         sr_data_paths = glob.glob('%s/%s_*' % (sr_dir, config.dataset))
@@ -108,7 +124,7 @@ def run_lsd_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
 
         lsd_errors = []
         for file_name in sr_data_file_names:
-            target, generated = load_hrtfs(config, sr_dir, file_name, replace_nodes=not KEEP_NODES)
+            target, generated = load_hrtfs(config, sr_dir, file_name, replace_nodes=not KEEP_NODES, random_subject=random_subject)
 
             # if torch.equal(generated, target):
             #     print("ERROR, TARGET AND GENERATED HRTF ARE THE SAME")
@@ -120,9 +136,12 @@ def run_lsd_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
             error = spectral_distortion_metric(generated, target)
             subject_id = ''.join(re.findall(r'\d+', file_name))
             lsd_errors.append([subject_id,  float(error.detach())])
-            print('LSD Error of subject %s: %0.4f' % (subject_id, float(error.detach())))
+            if random_subject:
+                print('LSD Error of random subject: %0.4fdB' % (float(error.detach())))
+            else:
+                print('LSD Error of subject %s: %0.4fdB' % (subject_id, float(error.detach())))
 
-    print('Mean LSD Error: %0.3f' % np.mean([error[1] for error in lsd_errors]))
+    print('Mean LSD Error: %0.3fdB' % np.mean([error[1] for error in lsd_errors]))
     with open(f'{config.path}/{file_ext}', "wb") as file:
         pickle.dump(lsd_errors, file)
 
