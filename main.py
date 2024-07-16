@@ -49,6 +49,15 @@ def modify_config(constant:str, new_value):
             else:
                 file.write(line)
 
+def evaluation(config, filepath, name=None, file_ext=None):
+    if name != None:
+        file_ext = f'_errors_{name}_data_{config.upscale_factor}.pickle'
+    run_lsd_evaluation(config, filepath, "lsd"+file_ext)
+    run_lsd_evaluation(config, filepath, "lsd"+file_ext, random_subject=True)
+    run_mse_evaluation(config, filepath, "mse"+file_ext)
+    run_rt60_evaluation(config, filepath, "rt60"+file_ext)
+    # run_localisation_evaluation(config, filepath)
+
 def main(config, mode):
     # Initialise Config object
     data_dir = config.raw_hrtf_dir / config.dataset.upper()
@@ -72,7 +81,6 @@ def main(config, mode):
     elif mode == 'generate_corruption':
         #copy the existing SOFA files, corrupt them and save them to a new location
         modify_sofa(data_dir, config.corrupted_sofa_dir)
-
 
     elif mode == 'preprocess':
         # Interpolates data to find HRIRs on cubed sphere, then FFT to obtain HRTF, finally splits data into train and
@@ -163,9 +171,7 @@ def main(config, mode):
 
         test(config, test_prefetcher)
 
-        run_lsd_evaluation(config, config.valid_path)
-        run_rt60_evaluation(config, config.valid_path)
-        # run_localisation_evaluation(config, config.valid_path)
+        evaluation(config, config.valid_path)
 
     elif mode == 'barycentric_baseline':
         barycentric_data_folder = f'/barycentric_interpolated_data_{config.upscale_factor}'
@@ -199,15 +205,7 @@ def main(config, mode):
 
         config.path = config.passthrough_hrtf_dir
 
-        file_ext = f'lsd_errors_passthrough_interpolated_data_{config.upscale_factor}.pickle'
-        run_lsd_evaluation(config, passthrough_output_path, file_ext)
-        run_lsd_evaluation(config, passthrough_output_path, file_ext, random_subject=True)
-
-        file_ext = f'rt60_errors_passthrough_interpolated_data_{config.upscale_factor}.pickle'
-        run_mse_evaluation(config, passthrough_output_path, file_ext)
-
-        file_ext = f'rt60_errors_passthrough_interpolated_data_{config.upscale_factor}.pickle'
-        run_rt60_evaluation(config, passthrough_output_path, file_ext)
+        evaluation(config, filepath=passthrough_output_path, name=mode)
 
     elif mode == 'reverb_baseline':
         # no change
@@ -226,12 +224,7 @@ def main(config, mode):
 
         config.path = config.reverb_hrtf_dir
 
-        file_ext = f'lsd_errors_reverb_interpolated_data_{config.upscale_factor}.pickle'
-        run_lsd_evaluation(config, reverb_output_path, file_ext)
-        run_lsd_evaluation(config, reverb_output_path, file_ext, random_subject=True)
-
-        file_ext = f'rt60_errors_reverb_interpolated_data_{config.upscale_factor}.pickle'
-        run_rt60_evaluation(config, reverb_output_path, file_ext)
+        evaluation(config, filepath=reverb_output_path, name=mode)
 
     elif mode == 'temporal_window_baseline':
         #TODO: implement a baseline where the time of the impulse is truncated to a certain window before audio reflections occur
@@ -251,18 +244,7 @@ def main(config, mode):
 
         config.path = config.temporal_window_hrtf_dir
 
-        file_ext = f'lsd_errors_temporal_window_interpolated_data_{config.upscale_factor}.pickle'
-        run_mse_evaluation(config, temporal_window_output_path, file_ext)
-
-        file_ext = f'lsd_errors_temporal_window_interpolated_data_{config.upscale_factor}.pickle'
-        run_lsd_evaluation(config, temporal_window_output_path, file_ext)
-        run_lsd_evaluation(config, temporal_window_output_path, file_ext, random_subject=True)
-
-        file_ext = f'rt60_errors_temporal_window_interpolated_data_{config.upscale_factor}.pickle'
-        run_rt60_evaluation(config, temporal_window_output_path, file_ext)
-
-        file_ext = f'loc_errors_temporal_window_interpolated_data_{config.upscale_factor}.pickle'
-        run_localisation_evaluation(config, temporal_window_output_path, file_ext)
+        evaluation(config, filepath=temporal_window_output_path, name=mode)
 
     elif mode == 'noise_gate_baseline':
         #TODO: implement a noise gate
