@@ -14,7 +14,7 @@ import numpy as np
 
 import matlab.engine
 
-DISABLE_LOCALISATION_EVALUATION = True
+DISABLE_LOCALISATION_EVALUATION = False
 KEEP_NODES = True
 
 def load_hrtfs(config, sr_dir, file_name, replace_nodes = False, random_subject = False):
@@ -181,6 +181,8 @@ def run_localisation_evaluation(config, sr_dir, file_ext=None, hrtf_selection=No
     s = eng.genpath(config.amt_dir)
     eng.addpath(s, nargout=0)
     s = eng.genpath(config.data_dirs_path)
+    eng.addpath(s, nargout=0)
+    s = eng.genpath(config.current_dir)
     eng.addpath(s, nargout=0)
 
     loc_errors = []

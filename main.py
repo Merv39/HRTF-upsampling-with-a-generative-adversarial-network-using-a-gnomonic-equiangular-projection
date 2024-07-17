@@ -50,13 +50,21 @@ def modify_config(constant:str, new_value):
                 file.write(line)
 
 def evaluation(config, filepath, name=None, file_ext=None):
-    if name != None:
+    if name == None:
+        run_lsd_evaluation(config, config.valid_path)
+        run_lsd_evaluation(config, config.valid_path, random_subject=True)
+        run_mse_evaluation(config, config.valid_path)
+        run_rt60_evaluation(config, config.valid_path)
+        if not config.using_hpc:
+            run_localisation_evaluation(config, config.valid_path)
+    else:
         file_ext = f'_errors_{name}_data_{config.upscale_factor}.pickle'
-    run_lsd_evaluation(config, filepath, "lsd"+file_ext)
-    run_lsd_evaluation(config, filepath, "lsd"+file_ext, random_subject=True)
-    run_mse_evaluation(config, filepath, "mse"+file_ext)
-    run_rt60_evaluation(config, filepath, "rt60"+file_ext)
-    # run_localisation_evaluation(config, filepath)
+        # run_lsd_evaluation(config, filepath, "lsd"+file_ext)
+        # run_lsd_evaluation(config, filepath, "lsd"+file_ext, random_subject=True)
+        # run_mse_evaluation(config, filepath, "mse"+file_ext)
+        # run_rt60_evaluation(config, filepath, "rt60"+file_ext)
+        if not config.using_hpc:
+            run_localisation_evaluation(config, filepath,"loc"+file_ext)
 
 def main(config, mode):
     # Initialise Config object

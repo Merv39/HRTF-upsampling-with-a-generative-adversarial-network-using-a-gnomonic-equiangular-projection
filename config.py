@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 # CONSTANTS FOR EASY ACCESS
@@ -31,6 +32,7 @@ class Config:
         self.tag = tag if tag is not None else 'pub-prep-upscale-sonicom-sonicom-synthetic-tl-2'
         self.dataset = dataset if dataset is not None else 'Sonicom'
         self.data_dir = data_dir if data_dir is not None else '/data/' + self.dataset
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
 
         if existing_model_tag is not None:
             self.start_with_existing_model = True
