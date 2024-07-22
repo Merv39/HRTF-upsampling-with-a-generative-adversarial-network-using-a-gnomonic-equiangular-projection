@@ -4,9 +4,11 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset
 import config
+import biquad
+from scipy.signal import iirfilter, sosfilt, sosfreqz
 
 from audioprocessing.audio_processing import reverberate_hrtf
-from audioprocessing.audio_processing import apply_to_hrtf_points
+from audioprocessing.audio_processing import apply_to_hrtf_points, apply_to_hrir_points, hz_to_bin, bin_to_hz
 
 TYPE = None
 TRUNCATE = None
@@ -33,21 +35,94 @@ def modify_hrtf(*args):
     else:
         return reverberate_hrtf(*args, truncate=TRUNCATE)
     
-def filter_array(array:np.ndarray, cutoff=0, type="lowpass")->np.ndarray:
+def filter_array(array:np.ndarray, cutoff=0, type="lowpass", filterclass="frequency", gain=12.0)->np.ndarray:
     '''Takes in frequency domain array, and applys filter
     
     Cutoff the number of frequency bins'''
-    freq_mask = np.ones_like(array)
-    if type == "lowpass":
-        freq_mask[cutoff:] = config.EPSILON
-    elif type == "highpass":
-        freq_mask[:cutoff] = config.EPSILON
-    return array * freq_mask
+    if filterclass == "frequency":
+        #applied on hrtf
+        freq_mask = np.ones_like(array)
+        scaling_factor = 10 ** (-gain / 20.0)
+
+        if type == "lowpass" or type == "highcut":
+            freq_mask[cutoff:] = 0.0
+        elif type == "highpass" or type == "lowcut":
+            freq_mask[:cutoff] = 0.0
+        elif type == "highshelf":
+            freq_mask[cutoff:] = scaling_factor
+        elif type == "lowshelf":
+            freq_mask[:cutoff] = scaling_factor
+
+        array = array * freq_mask
+        array[array == 0.0] = config.EPSILON
+        return array
+    elif filterclass == "IIR":
+        #applied on hrir
+        order = 2
+        nyquist = config.HRIR_SAMPLERATE / 2
+        norm_cutoff = cutoff / nyquist
+        if type == "lowpass" or type == "highcut":
+            sos = iirfilter(
+            N=order,
+            Wn=norm_cutoff,
+            btype='low',
+            analog=False,
+            ftype='butter',
+            output='sos'
+        )
+        elif type == "highpass" or type == "lowcut":
+            sos = iirfilter(
+            N=order,
+            Wn=norm_cutoff,
+            btype='high',
+            analog=False,
+            ftype='butter',
+            output='sos'
+        )
+        elif type == "highshelf":
+            sos = iirfilter(
+            N=order,
+            Wn=norm_cutoff,
+            rs=abs(gain),
+            btype='high',
+            analog=False,
+            ftype='butter',
+            output='sos'
+        )
+        elif type == "lowshelf":
+            sos = iirfilter(
+            N=order,
+            Wn=norm_cutoff,
+            rs=abs(gain),
+            btype='low',
+            analog=False,
+            ftype='butter',
+            output='sos'
+        )
+        return sosfilt(sos, array)
+    elif filterclass == "Biquad":
+        #applied on hrir
+        if type == "lowpass" or type == "highcut":
+            f = biquad.lowpass(sr=config.HRIR_SAMPLERATE, f=cutoff)
+        elif type == "highpass" or type == "lowcut":
+            f = biquad.highpass(sr=config.HRIR_SAMPLERATE, f=cutoff)
+        elif type == "highshelf":
+            f = biquad.highshelf(sr=config.HRIR_SAMPLERATE, f=cutoff, g=gain)
+        elif type == "lowshelf":
+            f = biquad.lowshelf(sr=config.HRIR_SAMPLERATE, f=cutoff, g=gain)
+        return f(array)
 
 def filter_hrtf(hr_hrtf:torch.Tensor):
-    cutoff = config.CUTOFF #frequency bins per side = 128
+    cutoff = hz_to_bin(config.CUTOFF_FREQ)
+    # print(f'cutoff bin:', cutoff)
     lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
-    lr_hrtf = apply_to_hrtf_points(lr_hrtf, False, filter_array, cutoff, "lowpass")
+
+    # Frequency Domain Filter
+    # lr_hrtf = apply_to_hrtf_points(lr_hrtf, False, filter_array, cutoff, "highshelf", filterclass="frequency")
+
+    # Time Domain Filter
+    lr_hrtf = apply_to_hrir_points(lr_hrtf, False, filter_array, cutoff, "highshelf", filterclass="IIR")
+
     lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
     # print("Reverb Tensors same:", torch.equal(hr_hrtf, lr_hrtf))
     return lr_hrtf

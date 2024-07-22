@@ -3,6 +3,7 @@ import itertools
 
 import numpy as np
 import torch
+import scipy
 from matplotlib import patches
 from matplotlib.lines import Line2D
 from matplotlib.ticker import LinearLocator
@@ -342,6 +343,21 @@ def plot_losses(train_losses_1, train_losses_2, label_1, label_2, color_1, color
     frame.set_edgecolor('0.9')
     plt.savefig(f'{path}/{filename}.png')
 
+def plot_magnitude_spectrum(frequencies:np.ndarray, signal_freq:np.ndarray):
+    x_labels = frequencies
+
+    step = 10
+    indices = np.arange(1, len(signal_freq) + 1)  # Indices starting from 1 to avoid log(0)
+
+    # Set custom x-axis labels at the chosen indices
+    plt.xticks(ticks=indices[::step], labels=[x_labels[i] for i in indices[::step] - 1], rotation=45)
+
+    # Set the x-axis to a logarithmic scale
+    plt.xscale('log')
+    plt.plot(20 * np.log10(signal_freq))
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Volume (dB)')
+    plt.title("Plot of Signal in the Frequency Domain")
 
 def plot_magnitude_spectrums(frequencies, magnitudes_real, magnitudes_interpolated, magnitudes_corrupted, ear, mode, label, path,
                              log_scale_magnitudes=True):

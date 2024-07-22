@@ -10,8 +10,8 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["passthrough_baseline", "--hpc", "False", "--type", "reverb"],
-            // "args": ["passthrough_baseline", "--hpc", "False", "--type", "filter"],
+            // "args": ["temporal_window_baseline", "--hpc", "False", "--type", "reverb"],
+            "args": ["passthrough_baseline", "--hpc", "False", "--type", "filter"],
             // "args": ["train", "--hpc", "False", "--tag", "debug-test", "--type", "reverb", "--wetdry", "0.5"],
         }
     ]

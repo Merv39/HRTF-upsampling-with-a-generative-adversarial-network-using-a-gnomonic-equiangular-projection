@@ -14,7 +14,7 @@ import numpy as np
 
 import matlab.engine
 
-DISABLE_LOCALISATION_EVALUATION = False
+DISABLE_LOCALISATION_EVALUATION = True
 KEEP_NODES = True
 
 def load_hrtfs(config, sr_dir, file_name, replace_nodes = False, random_subject = False):

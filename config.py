@@ -12,13 +12,13 @@ UPSCALE_FACTOR = 1
 TRAIN_SAMPLES_RATIO = 0.8
 HRIR_SAMPLERATE = 48000.0
 
-TYPE = "reverb"
+TYPE = "filter"
 
 WETDRY_RATIO = 0.5
 EPSILON = 1.0e-8
 TRUNCATE = False
 
-CUTOFF = 64
+CUTOFF_FREQ = 5000
 
 class Config:
     """Config class
@@ -33,6 +33,7 @@ class Config:
         self.dataset = dataset if dataset is not None else 'Sonicom'
         self.data_dir = data_dir if data_dir is not None else '/data/' + self.dataset
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.using_hpc = using_hpc
 
         if existing_model_tag is not None:
             self.start_with_existing_model = True

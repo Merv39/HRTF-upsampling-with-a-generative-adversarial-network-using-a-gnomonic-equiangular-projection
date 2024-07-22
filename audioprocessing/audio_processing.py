@@ -431,6 +431,17 @@ def check_signal(data:np.ndarray, input_domain:str, *str):
     debug(str, "Frequency shape:", signal.freq.shape)
     debug(str, "Time shape:", signal.time.shape)
 
+def bin_to_hz(bin_number:int) -> float:
+    all_freq = scipy.fft.fftfreq(config.NBINS_HRIR, 1/config.HRIR_SAMPLERATE)
+    pos_freq = all_freq[all_freq >= 0]
+    return pos_freq[bin_number]
+
+def hz_to_bin(frequency:float) -> int:
+    all_freq = scipy.fft.fftfreq(config.NBINS_HRIR, 1/config.HRIR_SAMPLERATE)
+    pos_freq = all_freq[all_freq >= 0]
+    # finds the index of the closest number in the list
+    return min(range(len(pos_freq)), key=lambda i: abs(pos_freq[i] - frequency))
+
 from scipy.io import wavfile
 import pyroomacoustics
 def calculate_RT60(filepath):
