@@ -13,12 +13,15 @@ TRAIN_SAMPLES_RATIO = 0.8
 HRIR_SAMPLERATE = 48000.0
 
 TYPE = "filter"
+FILTERTYPE = "lowpass"
+CUTOFF_FREQ = 1000.0
+#use if bandpass or bandstop
+CUTOFF_FREQ2 = 10000.0
+FILTERGAIN = -12.0
 
 WETDRY_RATIO = 0.5
 EPSILON = 1.0e-8
 TRUNCATE = False
-
-CUTOFF_FREQ = 5000
 
 class Config:
     """Config class

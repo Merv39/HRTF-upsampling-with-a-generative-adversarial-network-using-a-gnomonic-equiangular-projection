@@ -41,7 +41,7 @@ def modify_config(constant:str, new_value):
     # Modify the line that contains MY_CONSTANT
     with open(config_file_path, 'w') as file:
         for line in lines:
-            if line.startswith(constant):
+            if line.startswith(constant+" ="):
                 if type(new_value) == str:
                     file.write(f'{constant} = "{new_value}"\n')
                 else:
@@ -311,25 +311,44 @@ if __name__ == '__main__':
     parser.add_argument("-c", "--hpc")
     parser.add_argument("--wetdry")
     parser.add_argument("--truncate")
+    parser.add_argument("--filtertype")
+    parser.add_argument("--cutfreq")
+    parser.add_argument("--cutfreq2")
+    parser.add_argument("--gain")
     args = parser.parse_args()
 
     if args.type:
-        print(args.type)
+        # print(args.type)
         modify_config(constant='TYPE', new_value=args.type)
         import config
     
+    if args.filtertype:
+        # print(args.filtertype)
+        modify_config(constant='FILTERTYPE', new_value=args.filtertype)
+        import config
+    
     if args.wetdry:
-        print(args.wetdry)
+        # print(args.wetdry)
         modify_config(constant='WETDRY_RATIO', new_value=float(args.wetdry))
         import config
 
     if args.truncate:
-        print("truncate")
+        # print("truncate")
         modify_config(constant='TRUNCATE', new_value=True)
         import config
     else:
-        print("no truncate")
+        # print("no truncate")
         modify_config(constant='TRUNCATE', new_value=False)
+        import config
+    
+    if args.cutfreq:
+        modify_config(constant='CUTOFF_FREQ', new_value=float(args.cutfreq))
+        if args.cutfreq2:
+            modify_config(constant='CUTOFF_FREQ2', new_value=float(args.cutfreq2))
+            import config
+    
+    if args.gain:
+        modify_config(constant='FILTERGAIN', new_value=float(args.gain))
         import config
 
     if args.hpc == "True":

@@ -343,8 +343,8 @@ def apply_to_hrir_points(hrtf:torch.Tensor, normalise:bool, func:callable, *args
                 # dry_data = np.int32(normalise_ndarray(hrir_point_left, "peak") * 2147483647)
                 # scipy.io.wavfile.write(concat("dry", "x", x, "y", y, "panel", panels, ".wav"), 48000, dry_data)
                 
-                hrir_point_left = func(hrir_point_left, *args)
-                hrir_point_right = func(hrir_point_right, *args)
+                hrir_point_left = func(hrir_point_left, *args, **kwargs)
+                hrir_point_right = func(hrir_point_right, *args, **kwargs)
 
                 modified_signal_left = torch.from_numpy(
                     goertzel_algorithm_time_to_freq(hrir_point_left, fs=config.HRIR_SAMPLERATE, target_bins=config.NBINS_HRTF)

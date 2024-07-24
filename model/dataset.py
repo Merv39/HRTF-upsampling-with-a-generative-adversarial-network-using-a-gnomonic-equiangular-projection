@@ -5,20 +5,24 @@ import numpy as np
 from torch.utils.data import Dataset
 import config
 import biquad
-from scipy.signal import iirfilter, sosfilt, sosfreqz
+from scipy.signal import iirfilter, sosfilt
 
 from audioprocessing.audio_processing import reverberate_hrtf
 from audioprocessing.audio_processing import apply_to_hrtf_points, apply_to_hrir_points, hz_to_bin, bin_to_hz
 
 TYPE = None
 TRUNCATE = None
+FILTERTYPE = None
+CUTOFF_FREQ = None
+CUTOFF_FREQ2 = None
+FILTERGAIN = None
 
 def modify_hrtf(*args):
     '''
     This function to selects how the HRTF should be changed
     '''
-    global TYPE, TRUNCATE
-    if TYPE == None or TRUNCATE == None:
+    global TYPE, TRUNCATE, FILTERTYPE, CUTOFF_FREQ, CUTOFF_FREQ2, FILTERGAIN
+    if TYPE == None:
         import sys
         if 'config' in sys.modules:
             del sys.modules['config']
@@ -26,7 +30,18 @@ def modify_hrtf(*args):
         import config #re-import in case type has changed
         TYPE = config.TYPE
         TRUNCATE = config.TRUNCATE
-        print(TYPE, TRUNCATE)
+        FILTERTYPE = config.FILTERTYPE
+        CUTOFF_FREQ = config.CUTOFF_FREQ
+        CUTOFF_FREQ2 = config.CUTOFF_FREQ2
+        FILTERGAIN = config.FILTERGAIN
+
+        print("settings:")
+        print("TYPE:", TYPE)
+        print("TRUNCATE:", TRUNCATE)
+        print("FILTERTYPE:", FILTERTYPE)
+        print("CUTOFF_FREQ:", CUTOFF_FREQ)
+        print("CUTOFF_FREQ2:", CUTOFF_FREQ2)
+        print("FILTERGAIN:", FILTERGAIN)
 
     if TYPE == "downsample":
         return downsample_hrtf(*args)
@@ -43,6 +58,7 @@ def filter_array(array:np.ndarray, cutoff=0, type="lowpass", filterclass="freque
         #applied on hrtf
         freq_mask = np.ones_like(array)
         scaling_factor = 10 ** (-gain / 20.0)
+        cutoff = hz_to_bin(cutoff)
 
         if type == "lowpass" or type == "highcut":
             freq_mask[cutoff:] = 0.0
@@ -56,7 +72,7 @@ def filter_array(array:np.ndarray, cutoff=0, type="lowpass", filterclass="freque
         array = array * freq_mask
         array[array == 0.0] = config.EPSILON
         return array
-    elif filterclass == "IIR":
+    else:
         #applied on hrir
         order = 2
         nyquist = config.HRIR_SAMPLERATE / 2
@@ -65,7 +81,7 @@ def filter_array(array:np.ndarray, cutoff=0, type="lowpass", filterclass="freque
             sos = iirfilter(
             N=order,
             Wn=norm_cutoff,
-            btype='low',
+            btype='lowpass',
             analog=False,
             ftype='butter',
             output='sos'
@@ -74,46 +90,39 @@ def filter_array(array:np.ndarray, cutoff=0, type="lowpass", filterclass="freque
             sos = iirfilter(
             N=order,
             Wn=norm_cutoff,
-            btype='high',
+            btype='highpass',
             analog=False,
             ftype='butter',
             output='sos'
         )
         elif type == "highshelf":
+            f = biquad.highshelf(sr=config.HRIR_SAMPLERATE, f=cutoff, g=gain)
+            return f(array)
+        elif type == "lowshelf":
+            f = biquad.lowshelf(sr=config.HRIR_SAMPLERATE, f=cutoff, g=gain)
+            return f(array)
+        elif type == "bandpass":
             sos = iirfilter(
             N=order,
-            Wn=norm_cutoff,
-            rs=abs(gain),
-            btype='high',
+            Wn=[norm_cutoff, CUTOFF_FREQ2 / nyquist],
+            btype='bandpass',
             analog=False,
             ftype='butter',
             output='sos'
         )
-        elif type == "lowshelf":
+        elif type == "bandstop":
             sos = iirfilter(
             N=order,
-            Wn=norm_cutoff,
-            rs=abs(gain),
-            btype='low',
+            Wn=[norm_cutoff, CUTOFF_FREQ2 / nyquist],
+            btype='bandstop',
             analog=False,
             ftype='butter',
             output='sos'
         )
         return sosfilt(sos, array)
-    elif filterclass == "Biquad":
-        #applied on hrir
-        if type == "lowpass" or type == "highcut":
-            f = biquad.lowpass(sr=config.HRIR_SAMPLERATE, f=cutoff)
-        elif type == "highpass" or type == "lowcut":
-            f = biquad.highpass(sr=config.HRIR_SAMPLERATE, f=cutoff)
-        elif type == "highshelf":
-            f = biquad.highshelf(sr=config.HRIR_SAMPLERATE, f=cutoff, g=gain)
-        elif type == "lowshelf":
-            f = biquad.lowshelf(sr=config.HRIR_SAMPLERATE, f=cutoff, g=gain)
-        return f(array)
 
 def filter_hrtf(hr_hrtf:torch.Tensor):
-    cutoff = hz_to_bin(config.CUTOFF_FREQ)
+    cutoff = CUTOFF_FREQ
     # print(f'cutoff bin:', cutoff)
     lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
 
@@ -121,7 +130,7 @@ def filter_hrtf(hr_hrtf:torch.Tensor):
     # lr_hrtf = apply_to_hrtf_points(lr_hrtf, False, filter_array, cutoff, "highshelf", filterclass="frequency")
 
     # Time Domain Filter
-    lr_hrtf = apply_to_hrir_points(lr_hrtf, False, filter_array, cutoff, "highshelf", filterclass="IIR")
+    lr_hrtf = apply_to_hrir_points(lr_hrtf, False, filter_array, cutoff, FILTERTYPE, filterclass="IIR", gain=FILTERGAIN)
 
     lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
     # print("Reverb Tensors same:", torch.equal(hr_hrtf, lr_hrtf))
@@ -248,7 +257,7 @@ class CUDAPrefetcher:
             self.batch_data = None
             return None
 
-        print("ToDevice")
+        # print("ToDevice")
         with torch.cuda.stream(self.stream):
             for k, v in self.batch_data.items():
                 if torch.is_tensor(v):
