@@ -17,32 +17,32 @@ CUTOFF_FREQ = None
 CUTOFF_FREQ2 = None
 FILTERGAIN = None
 
+def load_settings(args):
+    global TYPE, TRUNCATE, FILTERTYPE, CUTOFF_FREQ, CUTOFF_FREQ2, FILTERGAIN
+    import sys
+    if 'config' in sys.modules:
+        del sys.modules['config']
+    
+    import config #re-import in case type has changed
+    TYPE = args.type if args.type else config.TYPE
+    TRUNCATE = True if args.truncate else config.TRUNCATE
+    FILTERTYPE = args.filtertype if args.filtertype else config.FILTERTYPE
+    CUTOFF_FREQ = float(args.cutfreq) if args.cutfreq else config.CUTOFF_FREQ
+    CUTOFF_FREQ2 = float(args.cutfreq2) if args.cutfreq2 else config.CUTOFF_FREQ2
+    FILTERGAIN = float(args.gain) if args.gain else config.FILTERGAIN
+
+    print("settings:")
+    print("TYPE:", TYPE)
+    print("TRUNCATE:", TRUNCATE)
+    print("FILTERTYPE:", FILTERTYPE)
+    print("CUTOFF_FREQ:", CUTOFF_FREQ)
+    print("CUTOFF_FREQ2:", CUTOFF_FREQ2)
+    print("FILTERGAIN:", FILTERGAIN)
+
 def modify_hrtf(*args):
     '''
     This function to selects how the HRTF should be changed
     '''
-    global TYPE, TRUNCATE, FILTERTYPE, CUTOFF_FREQ, CUTOFF_FREQ2, FILTERGAIN
-    if TYPE == None:
-        import sys
-        if 'config' in sys.modules:
-            del sys.modules['config']
-        
-        import config #re-import in case type has changed
-        TYPE = config.TYPE
-        TRUNCATE = config.TRUNCATE
-        FILTERTYPE = config.FILTERTYPE
-        CUTOFF_FREQ = config.CUTOFF_FREQ
-        CUTOFF_FREQ2 = config.CUTOFF_FREQ2
-        FILTERGAIN = config.FILTERGAIN
-
-        print("settings:")
-        print("TYPE:", TYPE)
-        print("TRUNCATE:", TRUNCATE)
-        print("FILTERTYPE:", FILTERTYPE)
-        print("CUTOFF_FREQ:", CUTOFF_FREQ)
-        print("CUTOFF_FREQ2:", CUTOFF_FREQ2)
-        print("FILTERGAIN:", FILTERGAIN)
-
     if TYPE == "downsample":
         return downsample_hrtf(*args)
     if TYPE == "filter":

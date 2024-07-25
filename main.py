@@ -23,6 +23,7 @@ from baselines.noise_gate import run_noisegate_baseline
 from baselines.temporal_window import run_temporal_window_baseline
 from baselines.reverb import run_reverb_baseline
 from baselines.passthrough import run_passthrough_baseline
+from model.dataset import load_settings
 
 PI_4 = np.pi / 4
 
@@ -365,4 +366,5 @@ if __name__ == '__main__':
 
     config = Config(tag, using_hpc=hpc)
 
+    load_settings(args)
     main(config, args.mode)
