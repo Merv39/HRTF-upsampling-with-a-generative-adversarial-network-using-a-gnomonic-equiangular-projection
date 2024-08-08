@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path
 
 
-def test(config, val_prefetcher):
+def test(config, val_prefetcher, input=True):
     # source: https://github.com/Lornatang/SRGAN-PyTorch/blob/main/test.py
     # Initialize super-resolution model
     ngpu = config.ngpu
@@ -64,6 +64,8 @@ def test(config, val_prefetcher):
 
         # Use the generator model to generate fake samples
         with torch.no_grad():
+            if not input:
+                lr = torch.ones_like(lr) #flat frequency response
             sr = model(lr)
 
         file_name = '/' + os.path.basename(batch_data["filename"][0])

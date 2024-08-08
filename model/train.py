@@ -15,11 +15,12 @@ import time
 from plot import plot_losses, plot_magnitude_spectrums
 
 
-def train(config, train_prefetcher):
+def train(config, train_prefetcher, input=True):
     """ Train the generator and discriminator models
 
     :param config: Config object containing model hyperparameters
     :param train_prefetcher: prefetcher for training data
+    :param input: bool which determines if HRTF is input into GAN
     """
     # Calculate how many batches of data are in each Epoch
     batches = len(train_prefetcher)
@@ -124,6 +125,11 @@ def train(config, train_prefetcher):
             netD.zero_grad()
 
             # Use the generator model to generate fake samples
+            if not input:
+                #lr = torch.ones of same shape, then for every first sample, set to 1
+                lr = torch.ones_like(lr)
+                #print(lr.shape) # torch.Size([1, 256, 5, 16, 16])
+
             sr = netG(lr)
             if torch.isnan(lr).any():
                 raise ValueError(f"NaNs found in initial model input; epoch {epoch}, batch {batch_index}")

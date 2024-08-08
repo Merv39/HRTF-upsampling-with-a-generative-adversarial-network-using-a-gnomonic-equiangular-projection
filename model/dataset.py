@@ -47,6 +47,8 @@ def modify_hrtf(*args):
         return downsample_hrtf(*args)
     if TYPE == "filter":
         return filter_hrtf(*args)
+    if TYPE == "none":
+        return args[0] #this should be the hrtf
     else:
         return reverberate_hrtf(*args, truncate=TRUNCATE)
     

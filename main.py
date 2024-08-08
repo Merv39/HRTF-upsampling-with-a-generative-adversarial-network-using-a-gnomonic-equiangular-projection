@@ -23,6 +23,7 @@ from baselines.noise_gate import run_noisegate_baseline
 from baselines.temporal_window import run_temporal_window_baseline
 from baselines.reverb import run_reverb_baseline
 from baselines.passthrough import run_passthrough_baseline
+from baselines.impulse import run_impulse_baseline
 from model.dataset import load_settings
 
 PI_4 = np.pi / 4
@@ -57,7 +58,7 @@ def evaluation(config, filepath, name=None, file_ext=None):
         run_mse_evaluation(config, config.valid_path)
         # run_rt60_evaluation(config, config.valid_path)
         if not config.using_hpc:
-            run_localisation_evaluation(config, config.valid_path)
+            run_localisation_evaluation(config, config.valid_path) #applies localisation eval with the tag as the folder location / valid_path
     else:
         file_ext = f'_errors_{name}_data_{config.upscale_factor}.pickle'
         run_lsd_evaluation(config, filepath, "lsd"+file_ext)
@@ -65,7 +66,7 @@ def evaluation(config, filepath, name=None, file_ext=None):
         run_mse_evaluation(config, filepath, "mse"+file_ext)
         # run_rt60_evaluation(config, filepath, "rt60"+file_ext)
         if not config.using_hpc:
-            run_localisation_evaluation(config, filepath,"loc"+file_ext)
+            run_localisation_evaluation(config, filepath,"loc"+file_ext) 
 
 def main(config, mode):
     # Initialise Config object
@@ -182,8 +183,27 @@ def main(config, mode):
 
         evaluation(config, config.valid_path)
 
-    elif mode == "evaluate_gan":
+    elif mode == 'test_impulse':
+        _, test_prefetcher = load_dataset(config, mean=None, std=None)
+        print("Loaded all datasets successfully.")
+
+        test(config, test_prefetcher, input=False)
+
         evaluation(config, config.valid_path)
+
+    elif mode == "localisation_evaluations":
+        base_path = f'{config.data_dirs_path}{config.runs_folder}'
+        print(base_path)
+        for folder_name in os.listdir(base_path):
+            if not os.path.isfile(f'{base_path}/{folder_name}/loc_errors.txt'):
+                print(folder_name)
+
+                config = Config(tag=folder_name, using_hpc=config.using_hpc) #reload config with new location
+                try:
+                    print(config.valid_path)
+                    run_localisation_evaluation(config, config.valid_path)
+                except:
+                    print(f"Failed to run evaluation on {folder_name}.")
 
     elif mode == 'barycentric_baseline':
         barycentric_data_folder = f'/barycentric_interpolated_data_{config.upscale_factor}'
@@ -218,6 +238,18 @@ def main(config, mode):
         config.path = config.passthrough_hrtf_dir
 
         evaluation(config, filepath=passthrough_output_path, name=mode)
+    
+    elif mode == 'impulse_baseline':
+        train_prefetcher, test_prefetcher = load_dataset(config, mean=None, std=None)
+        print("Loaded all datasets successfully.")
+
+        # util.initialise_folders(config, overwrite=True)
+        #  #set the train prefetcher to 
+        # train(config, train_prefetcher, input=False)
+
+        test(config, test_prefetcher, input=False)
+
+        evaluation(config, config.valid_path)
 
     elif mode == 'reverb_baseline':
         # no change
@@ -303,7 +335,7 @@ def main(config, mode):
         run_lsd_evaluation(config, config.hrtf_selection_dir, file_ext, hrtf_selection='maximum')
         file_ext = f'loc_errors_hrtf_selection_maximum_data.pickle'
         run_localisation_evaluation(config, config.hrtf_selection_dir, file_ext, hrtf_selection='maximum')
-
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("mode")
