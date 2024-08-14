@@ -1,4 +1,4 @@
-function [pol_acc1, pol_rms1, querr1] = calc_loc(fullSofa1FileName, fullSofa2FileName)
+function [pol_acc1, pol_rms1, querr1] = calc_loc(fullSofa1FileName, fullSofa2FileName, f_low)
 
     curdir = cd; amt_start(); cd(curdir); % start AMT
     pol_acc1_avg = 0.0;
@@ -10,25 +10,24 @@ function [pol_acc1, pol_rms1, querr1] = calc_loc(fullSofa1FileName, fullSofa2Fil
     [h2,fs2,az2,el2] = sofa2hrtf(Sofa2);
     fs = 48000;
     fs2 = 48000;
-    num_exp = 1;
+    num_exp = 200;
 
     % Run barumerli2023 for h1
     disp('Running barumerli2023 for first HRTF...'), tic
 
-    disp('test1')
-    disp(h1)
-    disp(fs)
+    %disp(h1)
+    %disp(fs)
 
     dtf = getDTF(h1,fs);
     SOFA_obj1 = hrtf2sofa(dtf,fs,az,el);
     % Preprocessing source information
-    [~, target1] = barumerli2023_featureextraction(SOFA_obj1, 'dtf', 'targ_az', SOFA_obj1.SourcePosition(:, 1), 'targ_el', SOFA_obj1.SourcePosition(:, 2)); 
+    [~, target1] = barumerli2023_featureextraction(SOFA_obj1, 'dtf', 'targ_az', SOFA_obj1.SourcePosition(:, 1), 'targ_el', SOFA_obj1.SourcePosition(:, 2), 'flow', f_low); 
 
 
     dtf = getDTF(h2,fs2);
     SOFA_obj2 = hrtf2sofa(dtf,fs2,az2,el2);
     % Preprocessing source information
-    [template2, target2] = barumerli2023_featureextraction(SOFA_obj2, 'dtf', 'targ_az', SOFA_obj2.SourcePosition(:, 1), 'targ_el', SOFA_obj2.SourcePosition(:, 2));
+    [template2, target2] = barumerli2023_featureextraction(SOFA_obj2, 'dtf', 'targ_az', SOFA_obj2.SourcePosition(:, 1), 'targ_el', SOFA_obj2.SourcePosition(:, 2), 'flow', f_low);
 
     % Run virtual experiments
     [m1,doa1] = barumerli2023('template',template2,'target',target1,'num_exp',num_exp,'sigma_spectral', 4, 'MAP');
@@ -43,5 +42,5 @@ function [pol_acc1, pol_rms1, querr1] = calc_loc(fullSofa1FileName, fullSofa2Fil
     pol_rms1_avg = pol_rms1_avg + pol_rms1;
     querr1_avg = querr1_avg + querr1;
     fprintf('Finished running barumerli2023 fo HRTF.')
-
+    amt_stop()
 end

@@ -7,6 +7,7 @@ import torch
 from model.model import Generator
 import shutil
 from pathlib import Path
+from plot import plot_losses, plot_magnitude_spectrums
 
 
 def test(config, val_prefetcher, input=True):
@@ -67,6 +68,16 @@ def test(config, val_prefetcher, input=True):
             if not input:
                 lr = torch.ones_like(lr) #flat frequency response
             sr = model(lr)
+
+            if not input:
+                i_plot = 0
+                magnitudes_interpolated = torch.permute(sr.detach().cpu()[i_plot], (1, 2, 3, 0))
+                magnitudes_real = torch.full_like(magnitudes_interpolated, float('nan'))
+                magnitudes_corrupted = torch.full_like(magnitudes_interpolated, float('nan'))
+
+                plot_magnitude_spectrums(pos_freqs, magnitudes_real[:, :, :, :config.nbins_hrtf], magnitudes_interpolated[:, :, :, :config.nbins_hrtf], magnitudes_corrupted[:, :, :, :config.nbins_hrtf],
+                                        "left", "training", label="impulse", path=config.path, log_scale_magnitudes=True, title=f"Magnitude spectrum, horizontal plane (left ear)")
+                exit()
 
         file_name = '/' + os.path.basename(batch_data["filename"][0])
         with open(valid_dir + file_name, "wb") as file:

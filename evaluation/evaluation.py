@@ -14,8 +14,9 @@ import numpy as np
 
 import matlab.engine
 
-DISABLE_LOCALISATION_EVALUATION = True
+DISABLE_LOCALISATION_EVALUATION = False
 KEEP_NODES = True
+eng = None
 
 def load_hrtfs(config, sr_dir, file_name, replace_nodes = False, random_subject = False):
     '''Returns the target HRTF and the GAN HRTF'''
@@ -81,18 +82,32 @@ def run_mse_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
 
     file_ext = 'mse_errors.pickle' if file_ext is None else file_ext
 
-    sr_data_paths = glob.glob('%s/%s_*' % (sr_dir, config.dataset))
-    sr_data_file_names = ['/' + os.path.basename(x) for x in sr_data_paths]
+    if hrtf_selection == 'minimum' or hrtf_selection == 'maximum':
+        lsd_errors = []
+        valid_data_paths = glob.glob('%s/%s_*' % (config.valid_hrtf_merge_dir, config.dataset))
+        valid_data_file_names = ['/' + os.path.basename(x) for x in valid_data_paths]
 
-    mse_errors = []
-    for file_name in sr_data_file_names:
-        target, generated = load_hrtfs(config, sr_dir, file_name, replace_nodes=not KEEP_NODES)
+        for file_name in valid_data_file_names:
+            target, generated = load_hrtfs(config, sr_dir, file_name, replace_nodes=not KEEP_NODES)
 
-        # Calculate and print MSE
-        error = mean_squared_error_metric(generated, target, db=False)
-        subject_id = ''.join(re.findall(r'\d+', file_name))
-        mse_errors.append([subject_id,  float(error.detach())])
-        print('Mean Squared Error of subject %s: %0.4f' % (subject_id, float(error.detach())))
+            # Calculate and print MSE
+            error = mean_squared_error_metric(generated, target, db=False)
+            subject_id = ''.join(re.findall(r'\d+', file_name))
+            mse_errors.append([subject_id,  float(error.detach())])
+            print('Mean Squared Error of subject %s: %0.4f' % (subject_id, float(error.detach())))
+    else:
+        sr_data_paths = glob.glob('%s/%s_*' % (sr_dir, config.dataset))
+        sr_data_file_names = ['/' + os.path.basename(x) for x in sr_data_paths]
+
+        mse_errors = []
+        for file_name in sr_data_file_names:
+            target, generated = load_hrtfs(config, sr_dir, file_name, replace_nodes=not KEEP_NODES)
+
+            # Calculate and print MSE
+            error = mean_squared_error_metric(generated, target, db=False)
+            subject_id = ''.join(re.findall(r'\d+', file_name))
+            mse_errors.append([subject_id,  float(error.detach())])
+            print('Mean Squared Error of subject %s: %0.4f' % (subject_id, float(error.detach())))
 
     print('Average MSE Error: %0.3f' % np.mean([error[1] for error in mse_errors]))
     with open(f'{config.path}/{file_ext}', "wb") as file:
@@ -169,23 +184,29 @@ def run_localisation_evaluation(config, sr_dir, file_ext=None, hrtf_selection=No
                 pickle.dump(torch.permute(generated[0], (1, 2, 3, 0)), file)
 
         projection_filename = f'{config.projection_dir}/{config.dataset}_projection_{config.hrtf_size}'
-        with open(projection_filename, "rb") as file:
-            cube, sphere, sphere_triangles, sphere_coeffs = pickle.load(file)
+        print(projection_filename)
+        with open(projection_filename, "rb") as f:
+            (cube, sphere, _, _) = pickle.load(f)
 
         convert_to_sofa(nodes_replaced_path, config, cube, sphere)
         print('Created valid sofa files')
 
         hrtf_file_names = [hrtf_file_name for hrtf_file_name in os.listdir(nodes_replaced_path + '/sofa_min_phase')]
 
-    eng = matlab.engine.start_matlab()
-    s = eng.genpath(config.amt_dir)
-    eng.addpath(s, nargout=0)
-    s = eng.genpath(config.data_dirs_path)
-    eng.addpath(s, nargout=0)
-    s = eng.genpath(config.current_dir)
-    eng.addpath(s, nargout=0)
+    global eng
+    if eng is None:
+        print("Start Matlab Engine")
+        eng = matlab.engine.start_matlab()
+        s = eng.genpath(config.amt_dir)
+        eng.addpath(s, nargout=0)
+        s = eng.genpath(config.data_dirs_path)
+        eng.addpath(s, nargout=0)
+        s = eng.genpath(config.current_dir)
+        eng.addpath(s, nargout=0)
 
     loc_errors = []
+    f_low = config.CUTOFF_FREQ
+    print('F_LOW:', f_low)
     for file in hrtf_file_names:
         target_sofa_file = config.valid_hrtf_merge_dir + '/sofa_min_phase/' + file
         if hrtf_selection == 'minimum' or hrtf_selection == 'maximum':
@@ -195,19 +216,25 @@ def run_localisation_evaluation(config, sr_dir, file_ext=None, hrtf_selection=No
 
         print(f'Target: {target_sofa_file}')
         print(f'Generated: {generated_sofa_file}')
-        [pol_acc1, pol_rms1, querr1] = eng.calc_loc(generated_sofa_file, target_sofa_file, nargout=3)
+        [pol_acc1, pol_rms1, querr1] = eng.calc_loc(generated_sofa_file, target_sofa_file, f_low, nargout=3)
         subject_id = ''.join(re.findall(r'\d+', file))
         loc_errors.append([subject_id, pol_acc1, pol_rms1, querr1])
         print('pol_acc1: %s' % pol_acc1)
         print('pol_rms1: %s' % pol_rms1)
         print('querr1: %s' % querr1)
 
-    print('Mean ACC Error: %0.3f' % np.mean([error[1] for error in loc_errors]))
-    print('Mean RMS Error: %0.3f' % np.mean([error[2] for error in loc_errors]))
-    print('Mean QUERR Error: %0.3f' % np.mean([error[3] for error in loc_errors]))
+    mean_err = 'Mean ACC Error: %0.3f' % np.mean([error[1] for error in loc_errors])
+    rms_err = 'Mean RMS Error: %0.3f' % np.mean([error[2] for error in loc_errors])
+    querr_err = 'Mean QUERR Error: %0.3f' % np.mean([error[3] for error in loc_errors])
+    print(mean_err)
+    print(rms_err)
+    print(querr_err)
     with open(f'{config.path}/{file_ext}', "wb") as file:
         pickle.dump(loc_errors, file)
-
+    with open(f'{config.path}/loc_errors_flow.txt', "w") as file:
+        file.write(mean_err+"\n")
+        file.write(rms_err+"\n")
+        file.write(querr_err+"\n")
 
 def run_target_localisation_evaluation(config):
 

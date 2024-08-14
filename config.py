@@ -14,14 +14,16 @@ HRIR_SAMPLERATE = 48000.0
 
 TYPE = "filter"
 FILTERTYPE = "lowpass"
-CUTOFF_FREQ = 1000.0
+CUTOFF_FREQ = 500.0
 #use if bandpass or bandstop
-CUTOFF_FREQ2 = 10000.0
-FILTERGAIN = -12.0
+CUTOFF_FREQ2 = 15000.0
+FILTERGAIN = 12.0
 
 WETDRY_RATIO = 0.5
 EPSILON = 1.0e-8
 TRUNCATE = False
+
+FOLDER_VERSION_NAME = "HRTF-GANs-30May24-Reverberationadversarial-network-using-a-gnomonic-equiangular-projection"
 
 class Config:
     """Config class
@@ -58,14 +60,13 @@ class Config:
         self.wetdry_ratio = WETDRY_RATIO
 
         # Data dirs
-        FOLDER_VERSION_NAME = "HRTF-GANs-30May24-Reverberationadversarial-network-using-a-gnomonic-equiangular-projection"
         if using_hpc:
             # HPC data dirs -- CHANGE THE PATH WHEN TESTING DIFFERENT CODE
             # self.data_dirs_path = '/rds/general/user/mgw23/home/HRTF-GANs-27Sep22-prep-for-publication' \
             #                       'adversarial-network-using-a-gnomonic-equiangular-projection'
             self.data_dirs_path = '/rds/general/user/mgw23/home/'+FOLDER_VERSION_NAME
             self.raw_hrtf_dir = Path('/rds/general/project/sonicom/live/HRTF Datasets')
-            self.amt_dir = '/rds/general/user/mgw23/AMT/amt_code'
+            self.amt_dir = '/rds/general/user/mgw23/home/AMT/amt_code'
         else:
             # local data dirs
             self.data_dirs_path = 'Z:/home/'+FOLDER_VERSION_NAME
@@ -101,6 +102,7 @@ class Config:
         self.temporal_window_hrtf_dir =         self.data_dirs_path + self.baseline_dir + '/temporal_window/valid'
         self.reverb_hrtf_dir =                  self.data_dirs_path + self.baseline_dir + '/reverb/valid'
         self.passthrough_hrtf_dir =             self.data_dirs_path + self.baseline_dir + '/passthrough/valid'
+        self.impulse_hrtf_dir =                 self.data_dirs_path + self.baseline_dir + '/impulse/valid'
 
         # Training hyperparams
         self.batch_size = 1

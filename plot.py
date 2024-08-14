@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import itertools
 
 import numpy as np
+import scipy.fft
 import torch
 import scipy
 from matplotlib import patches
@@ -12,9 +13,44 @@ from model.util import spectral_distortion_metric_for_plot
 from preprocessing.convert_coordinates import convert_sphere_to_cartesian, convert_cube_to_cartesian, \
     convert_cube_indices_to_spherical
 from preprocessing.utils import calc_all_interpolated_features, get_feature_for_point
+from model.dataset import filter_array
 
 PI_4 = np.pi / 4
 
+
+# def plot_filter(filter:callable, length, label, cutoff, type, filterclass="IIR", gain=-12):
+    
+#     impulse_time = np.zeros(length)
+#     impulse_time[0] = 1.0
+    
+#     filtered_time = filter(impulse_time, cutoff=cutoff, type=type, gain=gain)
+#     filtered_freq = scipy.fft.fft(filtered_time)
+#     filtered_freq = np.abs(filtered_freq)[length:]
+#     # Plot the impulse signal
+#     plt.plot(np.arange(length), filtered_freq, label=label)  # use_line_collection=True is for performance improvement
+
+
+# def plot_filters():
+#     length = 128
+#     filters = [
+#         ("lowpass 10k","lowpass", 10000),
+#         ("lowpass 6k", "lowpass", 6000),
+#         ("highpass 2k","highpass", 2000),
+#         ("highpass 1k", "highpass", 1000),
+#         ("lowshelf 5k +12dB", "lowshelf", 5000, 12.0),
+#         ("lowshelf 5k -12dB", "lowshelf", 5000, -12.0),
+#         ("highshelf 5k +12dB", "highshelf", 5000, 12.0),
+#         ("highshelf 5k -12dB", "highshelf", 5000, -12.0),
+#     ]
+
+#     plt.title('Filter Frequency Response')
+#     plt.xlabel('Time')
+#     plt.ylabel('Amplitude')
+#     plt.grid(True)
+
+#     for setting in filters:
+#         plot_filter(filter_array, length, setting[0], setting[1], setting[2], filterclass="IIR", gain=setting[3])
+#     plt.show()
 
 def plot_3d_shape(shape, coordinates, shading=None):
     """Plot points from a sphere or a cubed sphere in 3D
@@ -360,12 +396,13 @@ def plot_magnitude_spectrum(frequencies:np.ndarray, signal_freq:np.ndarray):
     plt.title("Plot of Signal in the Frequency Domain")
 
 def plot_magnitude_spectrums(frequencies, magnitudes_real, magnitudes_interpolated, magnitudes_corrupted, ear, mode, label, path,
-                             log_scale_magnitudes=True):
+                             log_scale_magnitudes=True, title=None):
     fig, axs = plt.subplots(3, 3, sharex='all', sharey='all', figsize=(9, 9))
 
-    sdm = spectral_distortion_metric_for_plot(magnitudes_interpolated, magnitudes_real)
-    sdm = round(sdm, 5)
-    title = f"Magnitude spectrum, horizontal plane ({ear} ear) \n ({mode} data, spectral distortion metric = {sdm})"
+    if title is None:
+        sdm = spectral_distortion_metric_for_plot(magnitudes_interpolated, magnitudes_real)
+        sdm = round(sdm, 5)
+        title = f"Magnitude spectrum, horizontal plane ({ear} ear) \n ({mode} data, spectral distortion metric = {sdm})"
 
     # keys refer to the locations of the subplots, values are the indices in the cubed sphere
     plot_locs = {(0, 0): (1, 0, 8), (0, 1): (0, 8, 8), (0, 2): (0, 0, 8),
@@ -386,9 +423,12 @@ def plot_magnitude_spectrums(frequencies, magnitudes_real, magnitudes_interpolat
             magnitudes_interpolated_plot = magnitudes_interpolated[indices[0]][indices[1]][indices[2]]
             magnitudes_corrupted_plot = magnitudes_corrupted[indices[0]][indices[1]][indices[2]]
 
-        axs[row, col].plot(frequencies, magnitudes_real_plot, label="Real HRTF")
-        axs[row, col].plot(frequencies, magnitudes_interpolated_plot, label="GAN interpolated HRTF")
-        axs[row, col].plot(frequencies, magnitudes_corrupted_plot, label="Corrupted HRTF")
+        if not torch.isnan(magnitudes_real_plot).any():
+            axs[row, col].plot(frequencies, magnitudes_real_plot, label="Real HRTF")
+        if not torch.isnan(magnitudes_interpolated_plot).any():
+            axs[row, col].plot(frequencies, magnitudes_interpolated_plot, label="GAN interpolated HRTF")
+        if not torch.isnan(magnitudes_corrupted_plot).any():
+            axs[row, col].plot(frequencies, magnitudes_corrupted_plot, label="Corrupted HRTF")
 
         axs[row, col].set(title=f"(az={round(azimuth)}\u00B0, el={round(elevation)}\u00B0)",
                           xlabel='Frequency in Hz', ylabel='Amplitude in dB')
