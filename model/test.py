@@ -8,9 +8,27 @@ from model.model import Generator
 import shutil
 from pathlib import Path
 from plot import plot_losses, plot_magnitude_spectrums
+from model.dataset import inverse_filter_hrtf
 
+def quick_plot(config, pos_freqs, label, data:torch.Tensor, data_real=None, data_corrupted=None):
+    i_plot = 0
+    magnitudes_interpolated = torch.permute(data.detach().cpu()[i_plot], (1, 2, 3, 0))
 
-def test(config, val_prefetcher, input=True):
+    if data_real is None:
+        magnitudes_real = torch.full_like(magnitudes_interpolated, float('nan'))
+    else:
+        magnitudes_real = torch.permute(data_real.detach().cpu()[i_plot], (1, 2, 3, 0))
+
+    if data_corrupted is None:    
+        magnitudes_corrupted = torch.full_like(magnitudes_interpolated, float('nan'))
+    else:
+        magnitudes_corrupted = torch.permute(data_corrupted.detach().cpu()[i_plot], (1, 2, 3, 0))
+
+    plot_magnitude_spectrums(pos_freqs, magnitudes_real[:, :, :, :config.nbins_hrtf], magnitudes_interpolated[:, :, :, :config.nbins_hrtf], magnitudes_corrupted[:, :, :, :config.nbins_hrtf],
+                            "left", "training", label=label, path=config.path, log_scale_magnitudes=True, title=f"Magnitude spectrum, horizontal plane (left ear)")
+    exit()
+
+def test(config, val_prefetcher, input=True, crossover = False):
     # source: https://github.com/Lornatang/SRGAN-PyTorch/blob/main/test.py
     # Initialize super-resolution model
     ngpu = config.ngpu
@@ -70,14 +88,17 @@ def test(config, val_prefetcher, input=True):
             sr = model(lr)
 
             if not input:
-                i_plot = 0
-                magnitudes_interpolated = torch.permute(sr.detach().cpu()[i_plot], (1, 2, 3, 0))
-                magnitudes_real = torch.full_like(magnitudes_interpolated, float('nan'))
-                magnitudes_corrupted = torch.full_like(magnitudes_interpolated, float('nan'))
+                quick_plot(config, pos_freqs, "impulse", sr)
 
-                plot_magnitude_spectrums(pos_freqs, magnitudes_real[:, :, :, :config.nbins_hrtf], magnitudes_interpolated[:, :, :, :config.nbins_hrtf], magnitudes_corrupted[:, :, :, :config.nbins_hrtf],
-                                        "left", "training", label="impulse", path=config.path, log_scale_magnitudes=True, title=f"Magnitude spectrum, horizontal plane (left ear)")
-                exit()
+            if crossover:
+                #stitch together the unfiltered portion of the lr with the filtered region but from the sr
+                #inverse filter on each batch of sr
+                restored_region = torch.empty_like(sr)
+                for i in range(config.batch_size):
+                    restored_region[i] = inverse_filter_hrtf(sr[i].detach().cpu())
+                #add lr and sr, replace sr with stitched HRTF
+                sr = lr + restored_region.to(device)
+                # quick_plot(config, pos_freqs, "crossover", sr, None, lr)
 
         file_name = '/' + os.path.basename(batch_data["filename"][0])
         with open(valid_dir + file_name, "wb") as file:

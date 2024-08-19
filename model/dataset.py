@@ -129,10 +129,42 @@ def filter_hrtf(hr_hrtf:torch.Tensor):
     lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
 
     # Frequency Domain Filter
-    # lr_hrtf = apply_to_hrtf_points(lr_hrtf, False, filter_array, cutoff, "highshelf", filterclass="frequency")
+    # lr_hrtf = apply_to_hrtf_points(lr_hrtf, False, filter_array, cutoff, FILTERTYPE, filterclass="frequency")
 
     # Time Domain Filter
     lr_hrtf = apply_to_hrir_points(lr_hrtf, False, filter_array, cutoff, FILTERTYPE, filterclass="IIR", gain=FILTERGAIN)
+
+    lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
+    # print("Reverb Tensors same:", torch.equal(hr_hrtf, lr_hrtf))
+    return lr_hrtf
+
+def inverse_filter_hrtf(hr_hrtf:torch.Tensor):
+    '''
+    Returns the opposite region to the original filter
+    '''
+    cutoff = CUTOFF_FREQ
+    # print(f'cutoff bin:', cutoff)
+    lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
+
+    inverse_filter_type = FILTERTYPE
+    if FILTERTYPE == "lowpass" or FILTERTYPE == "highcut":
+        inverse_filter_type = "highpass"
+    elif FILTERTYPE == "highpass" or FILTERTYPE == "lowcut":
+        inverse_filter_type = "lowpass"
+    elif FILTERTYPE == "highshelf":
+        inverse_filter_type = "lowshelf"
+    elif FILTERTYPE == "lowshelf":
+        inverse_filter_type = "highshelf"
+    elif FILTERTYPE == "bandpass":
+        inverse_filter_type = "bandstop"
+    elif FILTERTYPE == "bandstop":
+        inverse_filter_type = "bandpass"
+
+    # Frequency Domain Filter
+    # lr_hrtf = apply_to_hrtf_points(lr_hrtf, False, filter_array, cutoff, inverse_filter_type, filterclass="frequency")
+
+    # Time Domain Filter
+    lr_hrtf = apply_to_hrir_points(lr_hrtf, False, filter_array, cutoff, inverse_filter_type, filterclass="IIR", gain=FILTERGAIN)
 
     lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
     # print("Reverb Tensors same:", torch.equal(hr_hrtf, lr_hrtf))

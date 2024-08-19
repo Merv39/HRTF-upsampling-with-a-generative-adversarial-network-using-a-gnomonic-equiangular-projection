@@ -191,6 +191,14 @@ def main(config, mode):
 
         evaluation(config, config.valid_path)
 
+    elif mode == 'test_crossover':
+        _, test_prefetcher = load_dataset(config, mean=None, std=None)
+        print("Loaded all datasets successfully.")
+
+        test(config, test_prefetcher, crossover=True)
+
+        evaluation(config, config.valid_path)
+
     elif mode == "localisation_evaluations":
         base_path = f'{config.data_dirs_path}{config.runs_folder}'
         print(base_path)

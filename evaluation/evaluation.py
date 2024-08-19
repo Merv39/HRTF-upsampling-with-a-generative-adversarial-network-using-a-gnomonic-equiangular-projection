@@ -205,7 +205,7 @@ def run_localisation_evaluation(config, sr_dir, file_ext=None, hrtf_selection=No
         eng.addpath(s, nargout=0)
 
     loc_errors = []
-    f_low = config.CUTOFF_FREQ
+    f_low = 700.0 #config.CUTOFF_FREQ # default is 700.0hz
     print('F_LOW:', f_low)
     for file in hrtf_file_names:
         target_sofa_file = config.valid_hrtf_merge_dir + '/sofa_min_phase/' + file
@@ -229,9 +229,9 @@ def run_localisation_evaluation(config, sr_dir, file_ext=None, hrtf_selection=No
     print(mean_err)
     print(rms_err)
     print(querr_err)
-    with open(f'{config.path}/{file_ext}', "wb") as file:
-        pickle.dump(loc_errors, file)
-    with open(f'{config.path}/loc_errors_flow.txt', "w") as file:
+    # with open(f'{config.path}/{file_ext}', "wb") as file:
+    #     pickle.dump(loc_errors, file)
+    with open(f'{config.path}/loc_errors_flow{f_low}.txt', "w") as file:
         file.write(mean_err+"\n")
         file.write(rms_err+"\n")
         file.write(querr_err+"\n")
