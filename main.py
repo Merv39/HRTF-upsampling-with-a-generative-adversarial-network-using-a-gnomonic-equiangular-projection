@@ -6,6 +6,7 @@ import numpy as np
 import importlib
 
 from config import Config
+import config as conf
 from model.train import train
 from model.test import test
 from model.util import load_dataset
@@ -58,7 +59,7 @@ def evaluation(config, filepath, name=None, file_ext=None):
         run_mse_evaluation(config, config.valid_path)
         # run_rt60_evaluation(config, config.valid_path)
         if not config.using_hpc:
-            run_localisation_evaluation(config, config.valid_path) #applies localisation eval with the tag as the folder location / valid_path
+            run_localisation_evaluation(config, config.valid_path, file_ext) #applies localisation eval with the tag as the folder location / valid_path
     else:
         file_ext = f'_errors_{name}_data_{config.upscale_factor}.pickle'
         run_lsd_evaluation(config, filepath, "lsd"+file_ext)
@@ -245,7 +246,7 @@ def main(config, mode):
 
         config.path = config.passthrough_hrtf_dir
 
-        evaluation(config, filepath=passthrough_output_path, name=mode)
+        evaluation(config, filepath=passthrough_output_path, name=mode+str(conf.CUTOFF_FREQ))
     
     elif mode == 'impulse_baseline':
         train_prefetcher, test_prefetcher = load_dataset(config, mean=None, std=None)

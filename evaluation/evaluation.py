@@ -18,7 +18,7 @@ DISABLE_LOCALISATION_EVALUATION = False
 KEEP_NODES = True
 eng = None
 
-def load_hrtfs(config, sr_dir, file_name, replace_nodes = False, random_subject = False):
+def load_hrtfs(config, sr_dir, file_name, replace_nodes = False, random_subject = False, hrtf_selection = None):
     '''Returns the target HRTF and the GAN HRTF'''
     with open(config.valid_hrtf_merge_dir + file_name, "rb") as f:
         hr_hrtf = pickle.load(f)
@@ -30,8 +30,12 @@ def load_hrtfs(config, sr_dir, file_name, replace_nodes = False, random_subject 
         import random
         file_name = random.choice(sr_data_file_names)
 
-    with open(sr_dir + file_name, "rb") as f:
-        sr_hrtf = pickle.load(f)
+    if hrtf_selection is None:
+        with open(sr_dir + file_name, "rb") as f:
+            sr_hrtf = pickle.load(f)
+    else:
+        with open(f'{sr_dir}/{hrtf_selection}.pickle', "rb") as f:
+            sr_hrtf = pickle.load(f)
 
     if replace_nodes:
         lr_hrtf = torch.permute(
@@ -125,7 +129,7 @@ def run_lsd_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None, rando
         valid_data_file_names = ['/' + os.path.basename(x) for x in valid_data_paths]
 
         for file_name in valid_data_file_names:
-            target, generated = load_hrtfs(config, sr_dir, f'{hrtf_selection}.pickle')
+            target, generated = load_hrtfs(config, sr_dir, f'{hrtf_selection}.pickle', hrtf_selection=hrtf_selection)
 
             # Calculate and print LSD Error
             error = spectral_distortion_metric(generated, target)
@@ -229,8 +233,8 @@ def run_localisation_evaluation(config, sr_dir, file_ext=None, hrtf_selection=No
     print(mean_err)
     print(rms_err)
     print(querr_err)
-    # with open(f'{config.path}/{file_ext}', "wb") as file:
-    #     pickle.dump(loc_errors, file)
+    with open(f'{config.path}/{file_ext}', "wb") as file:
+        pickle.dump(loc_errors, file)
     with open(f'{config.path}/loc_errors_flow{f_low}.txt', "w") as file:
         file.write(mean_err+"\n")
         file.write(rms_err+"\n")
