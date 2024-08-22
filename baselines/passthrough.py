@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 
 from model.dataset import modify_hrtf
+from audioprocessing.audio_processing import hrtf_to_wav
 
 def run_passthrough_baseline(config, output_path, subject_file=None, name="passthrough"):
 
@@ -22,9 +23,11 @@ def run_passthrough_baseline(config, output_path, subject_file=None, name="passt
     for file_name in valid_data_file_names:
         with open(config.valid_hrtf_merge_dir + file_name, "rb") as f:
             hr_hrtf = pickle.load(f)
+        # hrtf_to_wav(hr_hrtf)
 
         # make a corrupted version of the hrtf
         lr_hrtf = torch.permute(modify_hrtf(torch.permute(hr_hrtf, (3, 0, 1, 2))),(1, 2, 3, 0))
+        # hrtf_to_wav(lr_hrtf)
 
         with open(output_path + file_name, "wb") as file:
             pickle.dump(lr_hrtf, file)
