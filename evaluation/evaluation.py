@@ -177,13 +177,16 @@ def run_localisation_evaluation(config, sr_dir, file_ext=None, hrtf_selection=No
         sr_data_file_names = ['/' + os.path.basename(x) for x in sr_data_paths]
 
         # Clear/Create directories
-        nodes_replaced_path = sr_dir + '/nodes_replaced'
-        shutil.rmtree(Path(nodes_replaced_path), ignore_errors=True)
-        Path(nodes_replaced_path).mkdir(parents=True, exist_ok=True)
+        if not KEEP_NODES:
+            nodes_replaced_path = sr_dir + '/nodes_replaced'
+            shutil.rmtree(Path(nodes_replaced_path), ignore_errors=True)
+            Path(nodes_replaced_path).mkdir(parents=True, exist_ok=True)
+        else:
+            nodes_replaced_path = sr_dir
 
         for file_name in sr_data_file_names:
-            target, generated = replace_nodes(config, sr_dir, file_name)
-
+            target, generated = load_hrtfs(config, sr_dir, file_name, replace_nodes=not KEEP_NODES)
+            
             with open(nodes_replaced_path + file_name, "wb") as file:
                 pickle.dump(torch.permute(generated[0], (1, 2, 3, 0)), file)
 
@@ -235,7 +238,7 @@ def run_localisation_evaluation(config, sr_dir, file_ext=None, hrtf_selection=No
     print(querr_err)
     with open(f'{config.path}/{file_ext}', "wb") as file:
         pickle.dump(loc_errors, file)
-    with open(f'{config.path}/loc_errors_flow{f_low}.txt', "w") as file:
+    with open(f'{config.path}/loc_errors.txt', "w") as file:
         file.write(mean_err+"\n")
         file.write(rms_err+"\n")
         file.write(querr_err+"\n")

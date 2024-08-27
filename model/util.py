@@ -63,9 +63,7 @@ def load_dataset(config, mean=None, std=None) -> [CUDAPrefetcher, CUDAPrefetcher
     print("Put data on correct device", config.device_name)
     if torch.cuda.is_available() and config.ngpu > 0:
         device = torch.device(config.device_name)
-        print("train prefetcher")
         train_prefetcher = CUDAPrefetcher(train_dataloader, device)
-        print("valid prefetcher")
         valid_prefetcher = CUDAPrefetcher(valid_dataloader, device)
     else:
         train_prefetcher = CPUPrefetcher(train_dataloader)
