@@ -47,6 +47,8 @@ def modify_hrtf(*args):
         return downsample_hrtf(*args)
     if TYPE == "filter":
         return filter_hrtf(*args)
+    if TYPE == "noisyfilter":
+        return filter_hrtf(args[0], noisy=True)
     if TYPE == "none":
         return args[0] #this should be the hrtf
     else:
@@ -123,7 +125,13 @@ def filter_array(array:np.ndarray, cutoff=0, type="lowpass", filterclass="freque
         )
         return sosfilt(sos, array)
 
-def filter_hrtf(hr_hrtf:torch.Tensor):
+def noisy_array(array:np.ndarray):
+    mean = 0; std_dev = 1; magnitude = 0.005
+    noise = magnitude * np.random.normal(mean, std_dev, array.shape)
+    return array + noise
+
+
+def filter_hrtf(hr_hrtf:torch.Tensor, noisy = False):
     cutoff = CUTOFF_FREQ
     # print(f'cutoff bin:', cutoff)
     lr_hrtf = hr_hrtf.permute(1,2,3,0).clone() # (PANELS, X, Y, CHANNELS)
@@ -133,6 +141,9 @@ def filter_hrtf(hr_hrtf:torch.Tensor):
 
     # Time Domain Filter
     lr_hrtf = apply_to_hrir_points(lr_hrtf, False, filter_array, cutoff, FILTERTYPE, filterclass="IIR", gain=FILTERGAIN)
+
+    if noisy:
+        lr_hrtf = apply_to_hrir_points(lr_hrtf, False, noisy_array)
 
     lr_hrtf = lr_hrtf.permute(3,0,1,2) # (CHANNELS, PANELS, X, Y)
     # print("Reverb Tensors same:", torch.equal(hr_hrtf, lr_hrtf))

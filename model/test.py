@@ -9,6 +9,7 @@ import shutil
 from pathlib import Path
 from plot import plot_losses, plot_magnitude_spectrums
 from model.dataset import inverse_filter_hrtf
+from audioprocessing.audio_processing import hrtf_to_wav
 
 def quick_plot(config, pos_freqs, label, data:torch.Tensor, data_real=None, data_corrupted=None):
     i_plot = 0
@@ -80,6 +81,8 @@ def test(config, val_prefetcher, input=True, crossover = False):
         # Transfer in-memory data to CUDA devices to speed up validation
         lr = batch_data["lr"].to(device=device, memory_format=torch.contiguous_format,
                                  non_blocking=True, dtype=torch.float)
+        hr = batch_data["hr"].to(device=device, memory_format=torch.contiguous_format,
+                            non_blocking=True, dtype=torch.float)
 
         # Use the generator model to generate fake samples
         with torch.no_grad():
@@ -98,7 +101,10 @@ def test(config, val_prefetcher, input=True, crossover = False):
                     restored_region[i] = inverse_filter_hrtf(sr[i].detach().cpu())
                 #add lr and sr, replace sr with stitched HRTF
                 sr = lr + restored_region.to(device)
-                # quick_plot(config, pos_freqs, "crossover", sr, None, lr)
+                # quick_plot(config, pos_freqs, "crossover", sr, hr, lr)
+            # print(torch.permute(sr[0], (1, 2, 3, 0)).detach().cpu().shape)
+            # hrtf_to_wav(torch.permute(sr[0], (1, 2, 3, 0)).detach().cpu())
+            # exit()
 
         file_name = '/' + os.path.basename(batch_data["filename"][0])
         with open(valid_dir + file_name, "wb") as file:

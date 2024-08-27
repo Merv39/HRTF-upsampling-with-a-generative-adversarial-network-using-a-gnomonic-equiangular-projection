@@ -283,10 +283,10 @@ def hrtf_to_wav(hrtf:torch.Tensor, panel=0, x=0, y=0):
     hrtf_point_left = hrtf_point[:config.NBINS_HRTF].numpy()
     plt.plot(hrtf_point_left)
     plt.show()
-    data = np.int32(normalise_ndarray(minimum_phase_ifft(hrtf_point_left)) * 2147483647)
-    scipy.io.wavfile.write(concat("Non-normalised", ".wav"), 48000, data)
-    data = np.int32(minimum_phase_ifft(hrtf_point_left) * 2147483647)
+    data = np.int32(normalise_ndarray(minimum_phase_ifft(hrtf_point_left), type="peak") * 2147483647)
     scipy.io.wavfile.write(concat("Normalised", ".wav"), 48000, data)
+    data = np.int32(minimum_phase_ifft(hrtf_point_left) * 2147483647)
+    scipy.io.wavfile.write(concat("Non-Normalised", ".wav"), 48000, data)
     return
 
 def apply_to_hrtf_points(hrtf:torch.Tensor, normalise:bool, func:callable, *args, **kwargs)-> torch.Tensor:

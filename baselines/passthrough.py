@@ -27,6 +27,8 @@ def run_passthrough_baseline(config, output_path, subject_file=None, name="passt
 
         # make a corrupted version of the hrtf
         lr_hrtf = torch.permute(modify_hrtf(torch.permute(hr_hrtf, (3, 0, 1, 2))),(1, 2, 3, 0))
+        # print(hr_hrtf.shape)
+        # print(lr_hrtf.shape)
         # hrtf_to_wav(lr_hrtf)
 
         with open(output_path + file_name, "wb") as file:

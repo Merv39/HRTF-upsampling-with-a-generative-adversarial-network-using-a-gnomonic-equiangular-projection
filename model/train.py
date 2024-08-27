@@ -53,6 +53,10 @@ def train(config, train_prefetcher, input=True):
         netD = (nn.DataParallel(netD, list(range(ngpu)))).to(device)
         netG = nn.DataParallel(netG, list(range(ngpu))).to(device)
 
+    # Establish convention for real and fake labels during training
+    real_label = 1.
+    fake_label = 0.
+
     # Define optimizers
     optD = optim.Adam(netD.parameters(), lr=lr_dis, betas=(beta1, beta2))
     optG = optim.Adam(netG.parameters(), lr=lr_gen, betas=(beta1, beta2))
@@ -137,13 +141,13 @@ def train(config, train_prefetcher, input=True):
                 raise ValueError(f"NaNs found in initial model output; epoch {epoch}, batch {batch_index}")
 
             # Calculate the classification score of the discriminator model for real samples
-            label = torch.full((batch_size, ), 1., dtype=hr.dtype, device=device)
+            label = torch.full((batch_size, ), real_label, dtype=hr.dtype, device=device)
             output = netD(hr).view(-1)
             loss_D_hr = adversarial_criterion(output, label)
             loss_D_hr.backward()
 
             # train on SR hrtfs
-            label.fill_(0.)
+            label.fill_(fake_label)
             output = netD(sr.detach().clone()).view(-1)
             loss_D_sr = adversarial_criterion(output, label)
             loss_D_sr.backward()
