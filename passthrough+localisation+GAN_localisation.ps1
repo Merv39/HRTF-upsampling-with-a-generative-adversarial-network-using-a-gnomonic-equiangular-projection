@@ -1,5 +1,5 @@
 # GAN Localisations
-# python main.py localisation_evaluations --hpc False
+python main.py localisation_evaluations --hpc False
 
 # Passthroughs + Passthrough Localisation:
 # python main.py passthrough_baseline --hpc False --type none  | Out-File -FilePath "analysis\None.txt" -Encoding utf8

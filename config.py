@@ -14,7 +14,7 @@ HRIR_SAMPLERATE = 48000.0
 
 TYPE = "filter"
 FILTERTYPE = "lowpass"
-CUTOFF_FREQ = 2000.0
+CUTOFF_FREQ = 6000.0
 #use if bandpass or bandstop
 CUTOFF_FREQ2 = 10000.0
 FILTERGAIN = -12.0
@@ -108,8 +108,8 @@ class Config:
         self.batch_size = 1
         self.num_workers = 1
         self.num_epochs = 300  # was originally 250
-        self.lr_gen = 0.0002
-        self.lr_dis = 0.0000015
+        self.lr_gen = 2e-4
+        self.lr_dis = 1.5e-6
         # how often to train the generator
         self.critic_iters = 4
 
@@ -120,6 +120,10 @@ class Config:
         # betas for Adam optimizer
         self.beta1 = 0.9
         self.beta2 = 0.999
+
+        self.labelsmoothing = False
+        self.adamw = False
+        self.adamax = False
 
         self.ngpu = 1
         if self.ngpu > 0:

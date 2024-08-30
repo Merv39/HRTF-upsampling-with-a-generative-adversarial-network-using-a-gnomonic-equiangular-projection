@@ -55,8 +55,8 @@ def load_hrtfs(config, sr_dir, file_name, replace_nodes = False, random_subject 
 
     return target, generated
 
-def replace_nodes(config, sr_dir, file_name):
-    return load_hrtfs(config, sr_dir, file_name, replace_nodes=True)
+def replace_nodes(config, sr_dir, file_name, hrtf_selection):
+    return load_hrtfs(config, sr_dir, file_name, replace_nodes=True, hrtf_selection=hrtf_selection)
 
 def run_rt60_evaluation(config, sr_dir, file_ext=None):
 
@@ -92,7 +92,7 @@ def run_mse_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
         valid_data_file_names = ['/' + os.path.basename(x) for x in valid_data_paths]
 
         for file_name in valid_data_file_names:
-            target, generated = load_hrtfs(config, sr_dir, file_name, replace_nodes=not KEEP_NODES)
+            target, generated = load_hrtfs(config, sr_dir, file_name, replace_nodes=not KEEP_NODES, hrtf_selection=hrtf_selection)
 
             # Calculate and print MSE
             error = mean_squared_error_metric(generated, target, db=False)
@@ -176,29 +176,26 @@ def run_localisation_evaluation(config, sr_dir, file_ext=None, hrtf_selection=No
         sr_data_paths = glob.glob('%s/%s_*' % (sr_dir, config.dataset))
         sr_data_file_names = ['/' + os.path.basename(x) for x in sr_data_paths]
 
-        # Clear/Create directories
-        if not KEEP_NODES:
-            nodes_replaced_path = sr_dir + '/nodes_replaced'
-            shutil.rmtree(Path(nodes_replaced_path), ignore_errors=True)
-            Path(nodes_replaced_path).mkdir(parents=True, exist_ok=True)
-        else:
-            nodes_replaced_path = sr_dir
+    # Clear/Create directories
+    nodes_replaced_path = sr_dir + '/nodes_replaced'
+    shutil.rmtree(Path(nodes_replaced_path), ignore_errors=True)
+    Path(nodes_replaced_path).mkdir(parents=True, exist_ok=True)
 
-        for file_name in sr_data_file_names:
-            target, generated = load_hrtfs(config, sr_dir, file_name, replace_nodes=not KEEP_NODES)
-            
-            with open(nodes_replaced_path + file_name, "wb") as file:
-                pickle.dump(torch.permute(generated[0], (1, 2, 3, 0)), file)
+    for file_name in sr_data_file_names:
+        target, generated = replace_nodes(config, sr_dir, file_name, hrtf_selection=hrtf_selection)
+        
+        with open(nodes_replaced_path + file_name, "wb") as file:
+            pickle.dump(torch.permute(generated[0], (1, 2, 3, 0)), file)
 
-        projection_filename = f'{config.projection_dir}/{config.dataset}_projection_{config.hrtf_size}'
-        print(projection_filename)
-        with open(projection_filename, "rb") as f:
-            (cube, sphere, _, _) = pickle.load(f)
+    projection_filename = f'{config.projection_dir}/{config.dataset}_projection_{config.hrtf_size}'
+    print(projection_filename)
+    with open(projection_filename, "rb") as f:
+        (cube, sphere, _, _) = pickle.load(f)
 
-        convert_to_sofa(nodes_replaced_path, config, cube, sphere)
-        print('Created valid sofa files')
+    convert_to_sofa(nodes_replaced_path, config, cube, sphere)
+    print('Created valid sofa files')
 
-        hrtf_file_names = [hrtf_file_name for hrtf_file_name in os.listdir(nodes_replaced_path + '/sofa_min_phase')]
+    hrtf_file_names = [hrtf_file_name for hrtf_file_name in os.listdir(nodes_replaced_path + '/sofa_min_phase')]
 
     global eng
     if eng is None:
