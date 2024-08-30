@@ -447,7 +447,7 @@ def check_signal(data:np.ndarray, input_domain:str, *str):
 def bin_to_hz(bin_number:int) -> float:
     all_freq = scipy.fft.fftfreq(config.NBINS_HRIR, 1/config.HRIR_SAMPLERATE)
     pos_freq = all_freq[all_freq >= 0]
-    return pos_freq[bin_number]
+    return pos_freq[bin_number]*2
 
 def hz_to_bin(frequency:float) -> int:
     all_freq = scipy.fft.fftfreq(config.NBINS_HRIR, 1/config.HRIR_SAMPLERATE)

@@ -18,39 +18,43 @@ from model.dataset import filter_array
 PI_4 = np.pi / 4
 
 
-# def plot_filter(filter:callable, length, label, cutoff, type, filterclass="IIR", gain=-12):
+def plot_filter(filter:callable, length, label, cutoff, type, filterclass="IIR", gain=-12):
     
-#     impulse_time = np.zeros(length)
-#     impulse_time[0] = 1.0
+    impulse_time = np.zeros(length*2)
+    impulse_time[0] = 1.0
     
-#     filtered_time = filter(impulse_time, cutoff=cutoff, type=type, gain=gain)
-#     filtered_freq = scipy.fft.fft(filtered_time)
-#     filtered_freq = np.abs(filtered_freq)[length:]
-#     # Plot the impulse signal
-#     plt.plot(np.arange(length), filtered_freq, label=label)  # use_line_collection=True is for performance improvement
+    filtered_time = filter(impulse_time, cutoff=cutoff, type=type, filterclass=filterclass, gain=gain)
+    filtered_freq = scipy.fft.fft(filtered_time)
+    print(length, len(filtered_freq))
+    filtered_freq = np.abs(filtered_freq)[length:]
+    # Plot the impulse signal
+    plt.plot(np.arange(length), filtered_freq, label=label)  # use_line_collection=True is for performance improvement
 
 
-# def plot_filters():
-#     length = 128
-#     filters = [
-#         ("lowpass 10k","lowpass", 10000),
-#         ("lowpass 6k", "lowpass", 6000),
-#         ("highpass 2k","highpass", 2000),
-#         ("highpass 1k", "highpass", 1000),
-#         ("lowshelf 5k +12dB", "lowshelf", 5000, 12.0),
-#         ("lowshelf 5k -12dB", "lowshelf", 5000, -12.0),
-#         ("highshelf 5k +12dB", "highshelf", 5000, 12.0),
-#         ("highshelf 5k -12dB", "highshelf", 5000, -12.0),
-#     ]
+def plot_filters():
+    length = 128
+    filters = [
+        ("lowpass 10k","lowpass", 10000),
+        ("lowpass 6k", "lowpass", 6000),
+        ("highpass 2k","highpass", 2000),
+        ("highpass 1k", "highpass", 1000),
+        ("lowshelf 5k +12dB", "lowshelf", 5000, 12.0),
+        ("lowshelf 5k -12dB", "lowshelf", 5000, -12.0),
+        ("highshelf 5k +12dB", "highshelf", 5000, 12.0),
+        ("highshelf 5k -12dB", "highshelf", 5000, -12.0),
+    ]
+    filters = [
+        ("highpass 6k", "highpass", 6000, -12.0),
+    ]
 
-#     plt.title('Filter Frequency Response')
-#     plt.xlabel('Time')
-#     plt.ylabel('Amplitude')
-#     plt.grid(True)
+    plt.title('Filter Frequency Response')
+    plt.xlabel('Frequency')
+    plt.ylabel('Amplitude')
+    plt.grid(True)
 
-#     for setting in filters:
-#         plot_filter(filter_array, length, setting[0], setting[1], setting[2], filterclass="IIR", gain=setting[3])
-#     plt.show()
+    for setting in filters:
+        plot_filter(filter_array, length, setting[0], setting[2], setting[1], filterclass="IIR", gain=setting[3])
+    plt.show()
 
 def plot_3d_shape(shape, coordinates, shading=None):
     """Plot points from a sphere or a cubed sphere in 3D

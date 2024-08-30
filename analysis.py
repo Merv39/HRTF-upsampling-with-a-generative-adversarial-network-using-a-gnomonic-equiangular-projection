@@ -241,23 +241,22 @@ def plotLocalisation():
 
 
 #make an empty array of size 256
-# array = np.empty(256)
-# noise = noisy_array(array) #applied on time domain
-# # plot_impulse_response(noise)
-# noise_freq = magnitude_fft(noise)
+array = np.empty(256)
+noise = noisy_array(array) #applied on time domain
+# plot_impulse_response(noise)
+noise_freq = magnitude_fft(noise)
 
+frequencies = np.fft.fftfreq(256, 1/config.HRIR_SAMPLERATE)
+x_labels = frequencies
 
-# frequencies = np.fft.fftfreq(256, 1/config.HRIR_SAMPLERATE)
-# x_labels = frequencies
+step = 10
+indices = np.arange(1, len(noise_freq) + 1)  # Indices starting from 1 to avoid log(0)
 
-# step = 10
-# indices = np.arange(1, len(noise_freq) + 1)  # Indices starting from 1 to avoid log(0)
+# Set custom x-axis labels at the chosen indices
+plt.xticks(ticks=indices[::step], labels=[x_labels[i] for i in indices[::step] - 1], rotation=45)
 
-# # Set custom x-axis labels at the chosen indices
-# plt.xticks(ticks=indices[::step], labels=[x_labels[i] for i in indices[::step] - 1], rotation=45)
-
-# # Set the x-axis to a logarithmic scale
-# plt.xscale('log')
-# plt.plot(decibels(noise_freq))
-# plt.savefig("Noise")
-# plt.show()
+# Set the x-axis to a logarithmic scale
+plt.xscale('log')
+plt.plot(decibels(noise_freq))
+plt.savefig("Noise")
+plt.show()
