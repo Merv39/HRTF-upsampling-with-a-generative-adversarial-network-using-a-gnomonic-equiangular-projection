@@ -52,6 +52,29 @@ def modify_config(constant:str, new_value):
             else:
                 file.write(line)
 
+def load_hyperparameters(config, args):
+    if args.batchsize:
+        config.batch_size = float(args.batchsize)
+    if args.lr_gen:
+        config.lr_gen = float(args.lr_gen)
+    if args.lr_dis:
+        config.lr_dis = float(args.lr_dis)
+    if args.critic_iters:
+        config.critic_iters = int(args.critic_iters)
+    if args.beta1:
+        config.beta1 = float(args.beta1)
+    if args.beta2:
+        config.beta2 = float(args.beta2)
+    
+    if args.labelsmoothing:
+        config.labelsmoothing = True
+    if args.adamw:
+        config.adamw = True
+    if args.adamax:
+        config.adamax = True
+
+    return config
+
 def evaluation(config, filepath, name=None, file_ext=None):
     if name == None:
         run_lsd_evaluation(config, config.valid_path)
@@ -357,6 +380,20 @@ if __name__ == '__main__':
     parser.add_argument("--cutfreq")
     parser.add_argument("--cutfreq2")
     parser.add_argument("--gain")
+
+    # hyperparameters
+    parser.add_argument("--batchsize")
+    parser.add_argument("--lr_gen")
+    parser.add_argument("--lr_dis")
+    parser.add_argument("--critic_iters")
+    parser.add_argument("--beta1")
+    parser.add_argument("--beta2")
+    
+    parser.add_argument("--labelsmoothing")
+    parser.add_argument("--adam")
+    parser.add_argument("--adamw")
+    parser.add_argument("--adamax")
+
     args = parser.parse_args()
 
     if args.type:
@@ -408,4 +445,6 @@ if __name__ == '__main__':
     config = Config(tag, using_hpc=hpc)
 
     load_settings(args)
+    config = load_hyperparameters(config, args)
+    print("Hyperparameters", config.get_train_params())
     main(config, args.mode)

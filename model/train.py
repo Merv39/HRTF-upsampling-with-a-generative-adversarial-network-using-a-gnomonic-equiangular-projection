@@ -54,12 +54,22 @@ def train(config, train_prefetcher, input=True):
         netG = nn.DataParallel(netG, list(range(ngpu))).to(device)
 
     # Establish convention for real and fake labels during training
-    real_label = 1.
+    if config.labelsmoothing:
+        real_label = 0.9
+    else:
+        real_label = 1.
     fake_label = 0.
 
     # Define optimizers
-    optD = optim.Adam(netD.parameters(), lr=lr_dis, betas=(beta1, beta2))
-    optG = optim.Adam(netG.parameters(), lr=lr_gen, betas=(beta1, beta2))
+    if config.adamw:
+        optimiser = optim.AdamW
+    elif config.adamax:
+        optimiser = optim.Adamax
+    else:
+        optimiser = optim.Adam
+
+    optD = optimiser(netD.parameters(), lr=lr_dis, betas=(beta1, beta2))
+    optG = optimiser(netG.parameters(), lr=lr_gen, betas=(beta1, beta2))
 
     # Define loss functions
     adversarial_criterion = nn.BCEWithLogitsLoss()
