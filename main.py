@@ -54,7 +54,7 @@ def modify_config(constant:str, new_value):
 
 def load_hyperparameters(config, args):
     if args.batchsize:
-        config.batch_size = float(args.batchsize)
+        config.batch_size = int(args.batchsize)
     if args.lr_gen:
         config.lr_gen = float(args.lr_gen)
     if args.lr_dis:
@@ -227,6 +227,10 @@ def main(config, mode):
         base_path = f'{config.data_dirs_path}{config.runs_folder}'
         print(base_path)
         for folder_name in os.listdir(base_path):
+            # TEMPORARILY DISABLE
+            if "hyperparam" in folder_name:
+                continue
+
             if not os.path.isfile(f'{base_path}/{folder_name}/loc_errors.txt'):
                 print(folder_name)
 

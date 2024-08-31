@@ -176,26 +176,26 @@ def run_localisation_evaluation(config, sr_dir, file_ext=None, hrtf_selection=No
         sr_data_paths = glob.glob('%s/%s_*' % (sr_dir, config.dataset))
         sr_data_file_names = ['/' + os.path.basename(x) for x in sr_data_paths]
 
-    # Clear/Create directories
-    nodes_replaced_path = sr_dir + '/nodes_replaced'
-    shutil.rmtree(Path(nodes_replaced_path), ignore_errors=True)
-    Path(nodes_replaced_path).mkdir(parents=True, exist_ok=True)
+        # Clear/Create directories
+        nodes_replaced_path = sr_dir + '/nodes_replaced'
+        shutil.rmtree(Path(nodes_replaced_path), ignore_errors=True)
+        Path(nodes_replaced_path).mkdir(parents=True, exist_ok=True)
 
-    for file_name in sr_data_file_names:
-        target, generated = replace_nodes(config, sr_dir, file_name, hrtf_selection=hrtf_selection)
-        
-        with open(nodes_replaced_path + file_name, "wb") as file:
-            pickle.dump(torch.permute(generated[0], (1, 2, 3, 0)), file)
+        for file_name in sr_data_file_names:
+            target, generated = replace_nodes(config, sr_dir, file_name, hrtf_selection=hrtf_selection)
+            
+            with open(nodes_replaced_path + file_name, "wb") as file:
+                pickle.dump(torch.permute(generated[0], (1, 2, 3, 0)), file)
 
-    projection_filename = f'{config.projection_dir}/{config.dataset}_projection_{config.hrtf_size}'
-    print(projection_filename)
-    with open(projection_filename, "rb") as f:
-        (cube, sphere, _, _) = pickle.load(f)
+        projection_filename = f'{config.projection_dir}/{config.dataset}_projection_{config.hrtf_size}'
+        print(projection_filename)
+        with open(projection_filename, "rb") as f:
+            (cube, sphere, _, _) = pickle.load(f)
 
-    convert_to_sofa(nodes_replaced_path, config, cube, sphere)
-    print('Created valid sofa files')
+        convert_to_sofa(nodes_replaced_path, config, cube, sphere)
+        print('Created valid sofa files')
 
-    hrtf_file_names = [hrtf_file_name for hrtf_file_name in os.listdir(nodes_replaced_path + '/sofa_min_phase')]
+        hrtf_file_names = [hrtf_file_name for hrtf_file_name in os.listdir(nodes_replaced_path + '/sofa_min_phase')]
 
     global eng
     if eng is None:
