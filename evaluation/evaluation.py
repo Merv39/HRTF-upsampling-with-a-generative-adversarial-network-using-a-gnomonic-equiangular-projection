@@ -87,7 +87,7 @@ def run_mse_evaluation(config, sr_dir, file_ext=None, hrtf_selection=None):
     file_ext = 'mse_errors.pickle' if file_ext is None else file_ext
 
     if hrtf_selection == 'minimum' or hrtf_selection == 'maximum':
-        lsd_errors = []
+        mse_errors = []
         valid_data_paths = glob.glob('%s/%s_*' % (config.valid_hrtf_merge_dir, config.dataset))
         valid_data_file_names = ['/' + os.path.basename(x) for x in valid_data_paths]
 

@@ -4,6 +4,7 @@ import pickle
 import torch
 import numpy as np
 import importlib
+import traceback
 
 from config import Config
 import config as conf
@@ -238,8 +239,9 @@ def main(config, mode):
                 try:
                     print(config.valid_path)
                     run_localisation_evaluation(config, config.valid_path)
-                except:
-                    print(f"Failed to run evaluation on {folder_name}.")
+                except Exception as e:
+                    print(f"Failed to run evaluation on {folder_name}. Exception: {e}")
+                    traceback.print_exc()
 
     elif mode == 'barycentric_baseline':
         barycentric_data_folder = f'/barycentric_interpolated_data_{config.upscale_factor}'
@@ -364,11 +366,15 @@ def main(config, mode):
 
         file_ext = f'lsd_errors_hrtf_selection_minimum_data.pickle'
         run_lsd_evaluation(config, config.hrtf_selection_dir, file_ext, hrtf_selection='minimum')
+        file_ext = f'mse_errors_hrtf_selection_minimum_data.pickle'
+        run_mse_evaluation(config, config.hrtf_selection_dir, file_ext, hrtf_selection='minimum')
         file_ext = f'loc_errors_hrtf_selection_minimum_data.pickle'
         run_localisation_evaluation(config, config.hrtf_selection_dir, file_ext, hrtf_selection='minimum')
 
         file_ext = f'lsd_errors_hrtf_selection_maximum_data.pickle'
         run_lsd_evaluation(config, config.hrtf_selection_dir, file_ext, hrtf_selection='maximum')
+        file_ext = f'mse_errors_hrtf_selection_maximum_data.pickle'
+        run_mse_evaluation(config, config.hrtf_selection_dir, file_ext, hrtf_selection='maximum')
         file_ext = f'loc_errors_hrtf_selection_maximum_data.pickle'
         run_localisation_evaluation(config, config.hrtf_selection_dir, file_ext, hrtf_selection='maximum')
     

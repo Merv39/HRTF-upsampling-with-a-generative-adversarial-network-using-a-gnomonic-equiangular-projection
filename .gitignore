@@ -2,3 +2,4 @@
 *.pyc
 *.wav
 analysis*/
+passthrough+localisation+GAN_localisation.ps1

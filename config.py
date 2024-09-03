@@ -12,9 +12,9 @@ UPSCALE_FACTOR = 1
 TRAIN_SAMPLES_RATIO = 0.8
 HRIR_SAMPLERATE = 48000.0
 
-TYPE = "filter"
+TYPE = "noisyfilter"
 FILTERTYPE = "lowpass"
-CUTOFF_FREQ = 6000.0
+CUTOFF_FREQ = 500.0
 #use if bandpass or bandstop
 CUTOFF_FREQ2 = 10000.0
 FILTERGAIN = -12.0
